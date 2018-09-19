@@ -63,17 +63,19 @@ static byte BlendParticle100( int pcolor, int dstcolor )
 ** function pointer route.  This exacts some overhead, but
 ** it pays off in clean and easy to understand code.
 */
+
+static vec3_t	local, transformed;
+static float	zi;
+static byte		*pdest;
+static short	*pz;
+static int		i, izi, pix, count, u, v;
+static byte(*blendparticle)(int, int);
+
 void SWR_DrawParticle( void )
 {
 	particle_t *pparticle = partparms.particle;
-	int         level     = partparms.level;
-	vec3_t	local, transformed;
-	float	zi;
-	byte	*pdest;
-	short	*pz;
+	int         level = partparms.level;
 	int      color = pparticle->color;
-	int		i, izi, pix, count, u, v;
-	byte  (*blendparticle)( int, int );
 
 	/*
 	** transform the particle
@@ -194,7 +196,6 @@ void SWR_DrawParticles (void)
 {
 	particle_t *p;
 	int         i;
-	extern unsigned long fpu_sp24_cw, fpu_chop_cw;
 
 	VectorScale( vright, xscaleshrink, r_pright );
 	VectorScale( vup, yscaleshrink, r_pup );
