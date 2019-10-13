@@ -56,6 +56,7 @@ qboolean gl_set = false;
 bool is_soft_render = false;
 
 unsigned	sys_frame_time;
+uint32_t AspectRatio = 0;
 uint64_t rumble_tick;
 void *tex_buffer = NULL;
 
@@ -1282,7 +1283,19 @@ static void update_variables(bool startup)
             break;
       }
 
-      var.key = "vitaquakeii_resolution";
+      var.key = "vitaquakeii_aspect";
+      var.value = NULL;
+
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && !initial_resolution_set)
+      {
+         if (!strcmp(var.value, "4:3")) {
+             AspectRatio = 0;
+         } else {
+             AspectRatio = 1;
+         }
+      }
+
+      var.key = (AspectRatio == 0 ? "vitaquakeii_resolution_43" : "vitaquakeii_resolution_169");
       var.value = NULL;
 
       if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && !initial_resolution_set)
