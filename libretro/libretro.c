@@ -1362,6 +1362,18 @@ static void update_variables(bool startup)
 				Cvar_SetValue( "crosshair", 1 );
 		}
 		
+		var.key = "vitaquakeii_brightness";
+		var.value = NULL;
+
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			char str[100];
+			float new_gamma;
+			snprintf(str, sizeof(str), "%s", var.value);
+			sscanf(str, "%f", &new_gamma);
+			Cvar_SetValue("vid_gamma", new_gamma);
+		}
+		
 		var.key = "vitaquakeii_fps";
 		var.value = NULL;
 

@@ -142,6 +142,39 @@ cvar_t  *gl_xflip;
 
 extern int scr_width;
 
+void DoGamma()
+{
+
+	if (vid_gamma->value < 0.2)
+		vid_gamma->value = 0.2;
+
+	if (vid_gamma->value >= 1)
+	{
+		vid_gamma->value = 1;
+		return;
+	}
+
+	//believe it or not this actually does brighten the picture!!
+	qglDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	qglBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA);
+	
+	float vertices[3*4] = {
+		10, 100, 100,
+		10,-100, 100,
+		10,-100,-100,
+		10, 100,-100
+	};
+	
+	qglColor4f(1, 1, 1, vid_gamma->value);
+	glVertexAttribPointerMapped(0, vertices);
+	GL_DrawPolygon(GL_TRIANGLE_FAN, 4);
+	
+	//if we do this twice, we double the brightening effect for a wider range of gamma's
+	glVertexAttribPointerMapped(0, vertices);
+	GL_DrawPolygon(GL_TRIANGLE_FAN, 4);
+	qglEnableClientState(GL_TEXTURE_COORD_ARRAY);
+}
+
 /*
 =================
 R_CullBox
@@ -496,38 +529,44 @@ R_PolyBlend
 */
 void R_PolyBlend (void)
 {
-   if (!gl_polyblend->value)
-      return;
-   if (!v_blend[3])
-      return;
+	if (!gl_polyblend->value)
+		return;
 
-   qglDisable(GL_ALPHA_TEST);
-   qglEnable (GL_BLEND);
-   qglDisable (GL_DEPTH_TEST);
+	qglBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	qglDisable(GL_ALPHA_TEST);
+	qglEnable (GL_BLEND);
+	qglDisable (GL_DEPTH_TEST);
+	qglDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	
+	qglLoadIdentity ();
 
-   qglLoadIdentity ();
+	/* FIXME: get rid of these */
+	qglRotatef (-90,  1, 0, 0);		 /* put Z going up */
+	qglRotatef (90,  0, 0, 1);			 /* put Z going up */
+	
+	if (v_blend[3]) {
+		qglColor4f(v_blend[0], v_blend[1], v_blend[2], v_blend[3]);
+		
+		float vertices[] = {
+			10, 100, 100,
+			10,-100, 100,
+			10,-100,-100,
+			10, 100,-100
+		};
+		
+		glVertexAttribPointerMapped(0, vertices);
+		GL_DrawPolygon(GL_TRIANGLE_FAN, 4);
+	}
+	
+	if (vid_gamma->value != 1)
+		DoGamma();
+	
+	qglEnableClientState(GL_TEXTURE_COORD_ARRAY);
+	qglBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	qglDisable (GL_BLEND);
+	qglEnable(GL_ALPHA_TEST);
 
-   /* FIXME: get rid of these */
-   qglRotatef (-90,  1, 0, 0);	    /* put Z going up */
-   qglRotatef (90,  0, 0, 1);	       /* put Z going up */
-
-   float vertices[] = {
-      10, 100, 100,
-      10,-100, 100,
-      10,-100,-100,
-      10, 100,-100
-   };
-
-   qglDisableClientState(GL_TEXTURE_COORD_ARRAY);
-   qglColor4f(v_blend[0], v_blend[1], v_blend[2], v_blend[3]);
-   glVertexAttribPointerMapped(0, vertices);
-   GL_DrawPolygon(GL_TRIANGLE_FAN, 4);
-   qglEnableClientState(GL_TEXTURE_COORD_ARRAY);
-
-   qglDisable (GL_BLEND);
-   qglEnable(GL_ALPHA_TEST);
-
-   qglColor4f(1,1,1,1);
+	qglColor4f(1,1,1,1);
 }
 
 /*======================================================================= */

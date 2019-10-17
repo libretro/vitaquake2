@@ -74,6 +74,24 @@ struct retro_core_option_definition option_defs_us[] = {
       "960x544"
    },
    {
+      "vitaquakeii_brightness",
+      "Brightness",
+      "Configure the brightness.",
+      {
+         { "0.2",   NULL },
+         { "0.3",   NULL },
+         { "0.4",   NULL },
+         { "0.5",   NULL },
+         { "0.6",   NULL },
+         { "0.7",   NULL },
+         { "0.8",   NULL },
+         { "0.9",   NULL },
+         { "1.0",   NULL },
+         { NULL, NULL },
+      },
+      "0.7"
+   },
+   {
       "vitaquakeii_dithered_filtering",
       "Dithered filtering",
       "Enables kernel-based software texture smoothing/filtering. Will take a hit on performance. Only works with the software renderer.",
@@ -218,6 +236,24 @@ struct retro_core_option_definition option_defs_it[] = {
          { NULL, NULL },
       },
       "960x544"
+   },
+   {
+      "vitaquakeii_brightness",
+      "Luminosità",
+      "Configura la luminosità.",
+      {
+         { "0.2",   NULL },
+         { "0.3",   NULL },
+         { "0.4",   NULL },
+         { "0.5",   NULL },
+         { "0.6",   NULL },
+         { "0.7",   NULL },
+         { "0.8",   NULL },
+         { "0.9",   NULL },
+         { "1.0",   NULL },
+         { NULL, NULL },
+      },
+      "0.7"
    },
    {
       "vitaquakeii_dithered_filtering",
