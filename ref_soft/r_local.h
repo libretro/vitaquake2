@@ -37,6 +37,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // fall over
 #define ROLL    2
 
+#define VID_BYTES       1
+#define TEX_BYTES       1
 
 /*
 
@@ -465,7 +467,7 @@ void R_DrawSurface (void);
 
 extern int              c_surf;
 
-extern byte             r_warpbuffer[WARP_WIDTH * WARP_HEIGHT];
+extern byte             r_warpbuffer[WARP_WIDTH * WARP_HEIGHT * VID_BYTES];
 
 
 
@@ -508,7 +510,7 @@ extern float    d_scalemip[3];
 
 extern int              cachewidth;
 extern pixel_t  *cacheblock;
-extern int              r_screenwidth;
+extern int              r_screenrowbytes;
 
 extern int              r_drawnpolycount;
 

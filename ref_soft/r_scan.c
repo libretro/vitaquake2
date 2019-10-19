@@ -23,7 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "r_local.h"
 
-unsigned char	*r_turb_pbase, *r_turb_pdest;
+byte	*r_turb_pbase, *r_turb_pdest;
 fixed16_t		r_turb_s, r_turb_t, r_turb_sstep, r_turb_tstep;
 int				*r_turb_turb;
 int				r_turb_spancount;
@@ -64,30 +64,29 @@ void D_WarpScreen (void)
 		for (v=0 ; v<h+AMP2*2 ; v++)
 		{
 			v2 = (int)((float)v/(h + AMP2 * 2) * r_refdef.vrect.height);
-			rowptr[v] = r_warpbuffer + (WARP_WIDTH * v2);
+			rowptr[v] = r_warpbuffer + (WARP_WIDTH * v2) * VID_BYTES;
 		}
 
 		for (u=0 ; u<w+AMP2*2 ; u++)
 		{
 			u2 = (int)((float)u/(w + AMP2 * 2) * r_refdef.vrect.width);
-			column[u] = u2;
+			column[u] = u2 * VID_BYTES;
 		}
 	}
 
 	turb = intsintable + ((int)(r_newrefdef.time*SPEED)&(CYCLE-1));
-	dest = vid.buffer + r_newrefdef.y * vid.rowbytes + r_newrefdef.x;
+	dest = vid.buffer + r_newrefdef.y * vid.rowbytes + r_newrefdef.x * VID_BYTES;
 
 	for (v=0 ; v<h ; v++, dest += vid.rowbytes)
 	{
 		col = &column[turb[v]];
 		row = &rowptr[v];
-		for (u=0 ; u<w ; u+=4)
-		{
-			dest[u+0] = row[turb[u+0]][col[u+0]];
-			dest[u+1] = row[turb[u+1]][col[u+1]];
-			dest[u+2] = row[turb[u+2]][col[u+2]];
-			dest[u+3] = row[turb[u+3]][col[u+3]];
-		}
+      for (u = 0; u < w; u++)
+      {
+         dest[u * VID_BYTES + 0] = row[turb[u & (CYCLE - 1)]][col[u] + 0];
+         dest[u * VID_BYTES + 1] = row[turb[u & (CYCLE - 1)]][col[u] + 1];
+         dest[u * VID_BYTES + 2] = row[turb[u & (CYCLE - 1)]][col[u] + 2];
+      }
 	}
 }
 
@@ -127,7 +126,7 @@ void Turbulent8 (espan_t *pspan)
 	r_turb_sstep = 0;	// keep compiler happy
 	r_turb_tstep = 0;	// ditto
 
-	r_turb_pbase = (unsigned char *)cacheblock;
+   r_turb_pbase = (byte *)cacheblock;
 
 	sdivz16stepu = d_sdivzstepu * 16;
 	tdivz16stepu = d_tdivzstepu * 16;
@@ -135,8 +134,7 @@ void Turbulent8 (espan_t *pspan)
 
 	do
 	{
-		r_turb_pdest = (unsigned char *)((byte *)d_viewbuffer +
-				(r_screenwidth * pspan->v) + pspan->u);
+      r_turb_pdest = (byte *)d_viewbuffer + d_scantable[pspan->v] + pspan->u * VID_BYTES;
 
 		count = pspan->count;
 
@@ -263,7 +261,7 @@ void NonTurbulent8 (espan_t *pspan)
 	r_turb_sstep = 0;	// keep compiler happy
 	r_turb_tstep = 0;	// ditto
 
-	r_turb_pbase = (unsigned char *)cacheblock;
+   r_turb_pbase = (byte *)cacheblock;
 
 	sdivz16stepu = d_sdivzstepu * 16;
 	tdivz16stepu = d_tdivzstepu * 16;
@@ -271,8 +269,7 @@ void NonTurbulent8 (espan_t *pspan)
 
 	do
 	{
-		r_turb_pdest = (unsigned char *)((byte *)d_viewbuffer +
-				(r_screenwidth * pspan->v) + pspan->u);
+      r_turb_pdest = (byte *)d_viewbuffer + d_scantable[pspan->v] + pspan->u * VID_BYTES;
 
 		count = pspan->count;
 
@@ -442,7 +439,8 @@ void D_DrawSpans16(espan_t *pspan) //qb: up it from 8 to 16.  This + unroll = bi
 
    do
    {
-      pdest = (byte *)((byte *)d_viewbuffer + (r_screenwidth * pspan->v) + pspan->u);
+      pdest = (byte *)d_viewbuffer + d_scantable[pspan->v] + pspan->u * VID_BYTES;
+
       count = pspan->count >> 4;
 
       spancount = pspan->count % 16;
@@ -605,8 +603,7 @@ void D_DrawSpans16_Dither (espan_t *pspan) //qbism up it from 8 to 16. This + un
 
       fixed16_t s = (int)(sdivz * z) + sadjust;
 
-      uint8_t *pdest = (uint8_t*)((byte *)d_viewbuffer +
-            (r_screenwidth * pspan->v) + pspan->u);
+      uint8_t *pdest = (byte *)d_viewbuffer + d_scantable[pspan->v] + pspan->u * VID_BYTES;
 
       if (s > bbextents)
          s = bbextents;

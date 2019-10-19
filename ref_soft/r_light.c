@@ -227,7 +227,6 @@ void SWR_LightPoint (vec3_t p, vec3_t color)
 	float		r;
 	int			lnum;
 	dlight_t	*dl;
-	float		light;
 	vec3_t		dist;
 	float		add;
 	
@@ -255,7 +254,6 @@ void SWR_LightPoint (vec3_t p, vec3_t color)
 	/*
 	 * add dynamic lights
 	 */
-	light = 0;
 	for (lnum=0 ; lnum<r_newrefdef.num_dlights ; lnum++)
 	{
 		dl = &r_newrefdef.dlights[lnum];

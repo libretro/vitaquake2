@@ -118,7 +118,7 @@ void SWR_DrawParticle( void )
 	** compute the Z-buffer reference value.
 	*/
 	pz = d_pzbuffer + (d_zwidth * v) + u;
-	pdest = d_viewbuffer + d_scantable[v] + u;
+   pdest = d_viewbuffer + d_scantable[v] + u * VID_BYTES;
 	izi = (int)(zi * 0x8000);
 
 	/*
@@ -138,7 +138,7 @@ void SWR_DrawParticle( void )
 
     switch (level) {
     case PARTICLE_33 :
-        for ( ; count ; count--, pz += d_zwidth, pdest += r_screenwidth)
+        for ( ; count ; count--, pz += d_zwidth, pdest += r_screenrowbytes)
         {
 //FIXME--do it in blocks of 8?
             for (i=0 ; i<pix ; i++)
@@ -153,7 +153,7 @@ void SWR_DrawParticle( void )
         break;
 
     case PARTICLE_66 :
-        for ( ; count ; count--, pz += d_zwidth, pdest += r_screenwidth)
+        for ( ; count ; count--, pz += d_zwidth, pdest += r_screenrowbytes)
         {
             for (i=0 ; i<pix ; i++)
             {
@@ -167,7 +167,7 @@ void SWR_DrawParticle( void )
         break;
 
     default:  //100
-        for ( ; count ; count--, pz += d_zwidth, pdest += r_screenwidth)
+        for ( ; count ; count--, pz += d_zwidth, pdest += r_screenrowbytes)
         {
             for (i=0 ; i<pix ; i++)
             {

@@ -38,7 +38,7 @@ model_t		*currentmodel;
 
 model_t		*r_worldmodel;
 
-byte		r_warpbuffer[WARP_WIDTH * WARP_HEIGHT];
+byte		r_warpbuffer[WARP_WIDTH * WARP_HEIGHT * VID_BYTES];
 
 swstate_t sw_state;
 
@@ -83,7 +83,7 @@ float		xscaleinv, yscaleinv;
 float		xscaleshrink, yscaleshrink;
 float		aliasxscale, aliasyscale, aliasxcenter, aliasycenter;
 
-int		r_screenwidth;
+int		r_screenrowbytes;
 
 float	verticalFieldOfView;
 float	xOrigin, yOrigin;
@@ -848,7 +848,8 @@ void R_DrawBEntitiesOnList (void)
 		R_RotateBmodel ();
 
       /* calculate dynamic lighting for bmodel */
-		SWR_PushDlights (currentmodel);
+      if (r_worldmodel)
+         SWR_PushDlights (currentmodel);
 
 		if (topnode->contents == CONTENTS_NODE)
 		{
