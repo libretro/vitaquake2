@@ -1,6 +1,7 @@
 STATIC_LINKING := 0
 AR             := ar
 HAVE_OPENGL    := 0
+LIBGL          := 
 
 ifneq ($(V),1)
    Q := @
@@ -75,7 +76,8 @@ ifeq ($(platform), unix)
 	EXT ?= so
    TARGET := $(TARGET_NAME)_libretro.$(EXT)
    fpic := -fPIC
-	HAVE_OPENGL = 1
+   HAVE_OPENGL = 1
+   LIBGL = -lGL
    SHARED := -shared -Wl,--version-script=$(CORE_DIR)/link.T -Wl,--no-undefined
 else ifeq ($(platform), linux-portable)
    TARGET := $(TARGET_NAME)_libretro.$(EXT)
@@ -137,10 +139,14 @@ else
    TARGET := $(TARGET_NAME)_libretro.dll
    HAVE_OPENGL = 1
    SHARED := -shared -static-libgcc -static-libstdc++ -s -Wl,--version-script=$(CORE_DIR)/link.T -Wl,--no-undefined
-   LDFLAGS += -lopengl32
+   LIBGL = -lopengl32
 endif
 
 LDFLAGS += $(LIBM)
+
+ifeq ($(HAVE_OPENGL),1)
+LDFLAGS += $(LIBGL)
+endif
 
 ifeq ($(DEBUG), 1)
    CFLAGS += -O0 -g -DDEBUG
