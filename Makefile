@@ -137,7 +137,19 @@ else ifeq ($(platform), libnx)
     CXXFLAGS := $(ASFLAGS) $(CFLAGS) -fno-rtti -std=gnu++11
     CFLAGS += -std=gnu11
     STATIC_LINKING = 1
-    HAVE_OPENGL = 1
+    HAVE_OPENGL =1
+# Lightweight PS3 Homebrew SDK
+else ifeq ($(platform), psl1ght)
+   EXT=a
+   TARGET := $(TARGET_NAME)_libretro_$(platform).$(EXT)
+   CC = $(PS3DEV)/ppu/bin/ppu-gcc$(EXE_EXT)
+   CXX = $(PS3DEV)/ppu/bin/ppu-g++$(EXE_EXT)
+   CC_AS = $(PS3DEV)/ppu/bin/ppu-gcc$(EXE_EXT)
+   AR = $(PS3DEV)/ppu/bin/ppu-ar$(EXE_EXT)
+   CFLAGS += -D__CELLOS_LV2__ -D__PSL1GHT__ -mcpu=cell
+   CXXFLAGS += -D__CELLOS_LV2__ -D__PSL1GHT__ -mcpu=cell
+   STATIC_LINKING = 1
+   HAVE_OPENGL = 0
 # CTR (3DS)
 else ifeq ($(platform), ctr)
     TARGET := $(TARGET_NAME)_libretro_$(platform).a
