@@ -181,8 +181,8 @@ else ifeq ($(platform), ctr)
     CC = $(DEVKITARM)/bin/arm-none-eabi-gcc$(EXE_EXT)
     CXX = $(DEVKITARM)/bin/arm-none-eabi-g++$(EXE_EXT)
     AR = $(DEVKITARM)/bin/arm-none-eabi-ar$(EXE_EXT)
-    DEFINES += -D_3DS -DARM11 -march=armv6k -mtune=mpcore -mfloat-abi=hard -I$(DEVKITPRO)/ctrulib/libctru/include
-    CFLAGS += $(DEFINES) -Dstricmp=strcasecmp -Dstrnicmp=strncasecmp
+    DEFINES += -D_3DS -DARM11 -march=armv6k -mtune=mpcore -mfloat-abi=hard -I$(CTRULIB)/include
+    CFLAGS += $(DEFINES) -Dstricmp=strcasecmp -Dstrnicmp=strncasecmp -fcommon
     CXXFLAGS += $(CFLAGS) -std=gnu++11
     STATIC_LINKING = 1
     HAVE_OPENGL = 0
