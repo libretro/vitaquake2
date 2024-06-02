@@ -714,6 +714,7 @@ void	FS_Read (void *buffer, int len, RFILE *f);
 void	FS_FreeFile (void *buffer);
 
 void	FS_CreatePath (char *path);
+int FS_filelength(RFILE* f);
 
 
 /*
