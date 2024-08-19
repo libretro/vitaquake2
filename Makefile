@@ -235,7 +235,11 @@ else
    CC ?= gcc
    TARGET := $(TARGET_NAME)_libretro.dll
    HAVE_OPENGL = 1
-   SHARED := -shared -static-libgcc -static-libstdc++ -s -Wl,--version-script=$(CORE_DIR)/link.T -Wl,--no-undefined
+   SHARED := -shared -static-libgcc -static-libstdc++
+   ifneq ($(DEBUG), 1)
+   SHARED += -s
+   endif  
+   SHARED += -Wl,--version-script=$(CORE_DIR)/link.T -Wl,--no-undefined
    GL_LIB = -lopengl32
 endif
 
