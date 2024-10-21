@@ -140,6 +140,7 @@ else
 endif
    CFLAGS   += $(MINVERSION)
    CXXFLAGS += $(MINVERSION)
+   LDFLAGS  += $(MINVERSION)
 
 else ifeq ($(platform), tvos-arm64)
    EXT?=dylib
@@ -151,6 +152,10 @@ ifeq ($(IOSSDK),)
    IOSSDK := $(shell xcodebuild -version -sdk appletvos Path)
 endif
    CC = cc -arch arm64 -isysroot $(IOSSDK)
+   MINVERSION = -mappletvos-version-min=11.0
+   CFLAGS   += $(MINVERSION)
+   CXXFLAGS += $(MINVERSION)
+   LDFLAGS  += $(MINVERSION)
 
 else ifneq (,$(findstring qnx,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro_qnx.so
