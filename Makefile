@@ -236,6 +236,14 @@ else ifeq ($(platform), gcw0)
    SHARED := -shared -Wl,--version-script=$(CORE_DIR)/link.T -Wl,--no-undefined
    CFLAGS += -DDINGUX -D_POSIX_C_SOURCE=199309L -fomit-frame-pointer -march=mips32 -mtune=mips32r2 -mhard-float
    HAVE_OPENGL = 0
+else ifeq ($(platform), webos)
+   EXT ?= so
+   TARGET := $(TARGET_NAME)_libretro.$(EXT)
+   fpic := -fPIC
+   SHARED := -shared -Wl,--version-script=$(CORE_DIR)/link.T -Wl,--no-undefined
+   HAVE_OPENGL = 0
+   GLES := 1
+   CFLAGS += -D_GNU_SOURCE -D_POSIX_C_SOURCE=200809L -DMESA_EGL_NO_X11_HEADERS -DEGL_NO_X11
 else
    CC ?= gcc
    TARGET := $(TARGET_NAME)_libretro.dll
