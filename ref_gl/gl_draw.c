@@ -253,7 +253,7 @@ void Draw_Fill (int x, int y, int w, int h, int c)
 
 	qglDisable(GL_TEXTURE_2D);
 	DrawQuad_NoTex(x, y, w, h, (color.v[0]) / 255.0f, (color.v[1]) / 255.0f, (color.v[2]) / 255.0f, 1.0f);
-	glEnable(GL_TEXTURE_2D);
+	qglEnable(GL_TEXTURE_2D);
 
 	qglColor4f(1,1,1,1);
 }
@@ -272,7 +272,7 @@ void Draw_FadeScreen (int transparent)
 	qglEnable (GL_BLEND);
 	DrawQuad_NoTex(0, 0, vid.width, vid.height, 0, 0, 0, transparent ? 0.8f : 1.0f);
 	qglColor4f (1,1,1,1);
-	glEnable(GL_TEXTURE_2D);
+	qglEnable(GL_TEXTURE_2D);
 	qglDisable (GL_BLEND);
 }
 

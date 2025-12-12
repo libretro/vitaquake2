@@ -1195,6 +1195,7 @@ static void R_BeginFrame( float camera_separation )
 	{
 		vid_refgl_gamma->modified = false;
 
+#if !defined(__SWITCH__)
 		if ( gl_config.renderer & ( GL_RENDERER_VOODOO ) )
 		{
 			char envbuffer[1024];
@@ -1206,6 +1207,7 @@ static void R_BeginFrame( float camera_separation )
 			Com_sprintf( envbuffer, sizeof(envbuffer), "SST_GAMMA=%f", g );
 			putenv( envbuffer );
 		}
+#endif
 	}
 
 	GLimp_BeginFrame( camera_separation );
