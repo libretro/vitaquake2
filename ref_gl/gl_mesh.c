@@ -760,8 +760,8 @@ void R_DrawAliasModel (entity_t *e)
 		qglPushMatrix ();
 
 		/* Don't rotate shadows on ungodly axes */
-		glTranslatef(currententity->origin[0], currententity->origin[1], currententity->origin[2]);
-		glRotatef(currententity->angles[1], 0, 0, 1);
+		qglTranslatef(currententity->origin[0], currententity->origin[1], currententity->origin[2]);
+		qglRotatef(currententity->angles[1], 0, 0, 1);
 
 		qglDisable(GL_TEXTURE_2D);
 		qglEnable (GL_BLEND);
