@@ -165,7 +165,7 @@ else ifneq (,$(findstring qnx,$(platform)))
 	CXX = QCC -Vgcc_ntoarmv7le
 else ifeq ($(platform), emscripten)
    TARGET := $(TARGET_NAME)_libretro_emscripten.bc
-   CFLAGS += -D_XOPEN_SOURCE=700
+   CFLAGS += -D_XOPEN_SOURCE=700 -DSTB_VORBIS_HEADER_ONLY
    AR := emar
    STATIC_LINKING = 1
    ifneq ($(MEMORY),)
