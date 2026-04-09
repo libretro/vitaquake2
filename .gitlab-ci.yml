@@ -98,6 +98,10 @@ include:
   - project: 'libretro-infrastructure/ci-templates'
     file: '/emscripten-static.yml'
 
+  # webOS 32-bit (LGTV)
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/webos-make.yml'
+
 # Stages for building
 stages:
   - build-prepare
@@ -238,6 +242,12 @@ libretro-build-emscripten:
   variables:
     EM_MEMORY: 402653184
 
+# webOS 32-bit
+libretro-build-webos-armv7a:
+  extends:
+    - .libretro-webos-armv7a-make-platform-webos
+    - .core-defs
+
 ######################
 ## vitaquake2-rogue ##
 ######################
@@ -367,6 +377,12 @@ libretro-build-emscripten-rogue:
     - .core-defs-rogue
   variables:
     EM_MEMORY: 402653184
+
+# webOS 32-bit
+libretro-build-webos-armv7a-rogue:
+  extends:
+    - .libretro-webos-armv7a-make-platform-webos
+    - .core-defs-rogue
 
 #######################
 ## vitaquake2-xatrix ##
@@ -498,6 +514,12 @@ libretro-build-emscripten-xatrix:
   variables:
     EM_MEMORY: 402653184
 
+# webOS 32-bit
+libretro-build-webos-armv7a-xatrix:
+  extends:
+    - .libretro-webos-armv7a-make-platform-webos
+    - .core-defs-xatrix
+
 ######################
 ## vitaquake2-zaero ##
 ######################
@@ -627,3 +649,9 @@ libretro-build-emscripten-zaero:
     - .core-defs-zaero
   variables:
     EM_MEMORY: 402653184
+
+# webOS 32-bit
+libretro-build-webos-armv7a-zaero:
+  extends:
+    - .libretro-webos-armv7a-make-platform-webos
+    - .core-defs-zaero
