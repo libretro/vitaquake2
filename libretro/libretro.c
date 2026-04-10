@@ -1,23 +1,23 @@
 /*
-Copyright (C) 2017 Felipe Izzo
-Copyright (C) 1997-2001 Id Software, Inc.
+   Copyright (C) 2017 Felipe Izzo
+   Copyright (C) 1997-2001 Id Software, Inc.
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-as published by the Free Software Foundation; either version 2
-of the License, or (at your option) any later version.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; either version 2
+   of the License, or (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
 
-See the GNU General Public License for more details.
+   See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-*/
+ */
 
 #ifdef HAVE_OPENGL
 #include <glsym/rglgen_private_headers.h>
@@ -129,7 +129,7 @@ void ( APIENTRY * qglAlphaFunc )(GLenum func,  GLclampf ref);
 #define GL_FUNCS_NUM 44
 
 typedef struct api_entry{
-	void *ptr;
+   void *ptr;
 } api_entry;
 
 api_entry funcs[GL_FUNCS_NUM];
@@ -160,6 +160,10 @@ static retro_input_state_t input_cb;
 static struct retro_rumble_interface rumble;
 static bool libretro_supports_bitmasks = false;
 
+/* Tri-state: unknown until first frame, then latched */
+enum sw_fb_state { SW_FB_UNKNOWN, SW_FB_SUPPORTED, SW_FB_UNSUPPORTED };
+static enum sw_fb_state sw_fb_status = SW_FB_UNKNOWN;
+
 static void audio_callback(void);
 
 static unsigned quake_input_device = RETRO_DEVICE_JOYPAD;
@@ -170,31 +174,31 @@ static unsigned quake_input_device = RETRO_DEVICE_JOYPAD;
 static int analog_deadzone = (int)(0.15f * ANALOG_RANGE);
 
 typedef struct {
-	char *keyname;
-	int keynum;
-	char *command;
+   char *keyname;
+   int keynum;
+   char *command;
 } input_bind_t;
 
 static struct retro_input_descriptor input_desc[] = {
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,   "Open Inventory" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,     "Menu Up" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,   "Menu Down" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT,  "Use Inventory Item" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,      "Menu Cancel" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,      "Menu Select" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,      "Next Weapon" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,      "Run" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,      "Crouch / Descend" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,     "Jump / Climb" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,     "Attack" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,     "Drop Inventory Item" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT, "Show / Hide Help Computer" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START,  "Show Menu" },
-	{ 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,  RETRO_DEVICE_ID_ANALOG_X, "Strafe" },
-	{ 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,  RETRO_DEVICE_ID_ANALOG_Y, "Move" },
-	{ 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X, "Horizontal Turn" },
-	{ 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y, "Vertical Look" },
-	{ 0 },
+   { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,   "Open Inventory" },
+   { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,     "Menu Up" },
+   { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,   "Menu Down" },
+   { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT,  "Use Inventory Item" },
+   { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,      "Menu Cancel" },
+   { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,      "Menu Select" },
+   { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,      "Next Weapon" },
+   { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,      "Run" },
+   { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,      "Crouch / Descend" },
+   { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,     "Jump / Climb" },
+   { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,     "Attack" },
+   { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,     "Drop Inventory Item" },
+   { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT, "Show / Hide Help Computer" },
+   { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START,  "Show Menu" },
+   { 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,  RETRO_DEVICE_ID_ANALOG_X, "Strafe" },
+   { 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,  RETRO_DEVICE_ID_ANALOG_Y, "Move" },
+   { 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X, "Horizontal Turn" },
+   { 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y, "Vertical Look" },
+   { 0 },
 };
 
 /* Note: K_AUX1 and K_AUX4 are reserved for use
@@ -202,22 +206,22 @@ static struct retro_input_descriptor input_desc[] = {
  * to *something*, otherwise the keys will be
  * ignored (great design there...) */
 static const input_bind_t input_binds_pad[] = {
-	[RETRO_DEVICE_ID_JOYPAD_B]      = { "AUX4",       K_AUX4,       "" }, /* Menu Cancel */
-	[RETRO_DEVICE_ID_JOYPAD_Y]      = { "AUX2",       K_AUX2,       "weapnext" },
-	[RETRO_DEVICE_ID_JOYPAD_SELECT] = { "SELECT",     K_ENTER,      "help" },
-	[RETRO_DEVICE_ID_JOYPAD_START]  = { "START",      K_ESCAPE,     "" }, /* Menu Show */
-	[RETRO_DEVICE_ID_JOYPAD_UP]     = { "UPARROW",    K_UPARROW,    "invprev" },
-	[RETRO_DEVICE_ID_JOYPAD_DOWN]   = { "DOWNARROW",  K_DOWNARROW,  "invnext" },
-	[RETRO_DEVICE_ID_JOYPAD_LEFT]   = { "LEFTARROW",  K_LEFTARROW,  "inven" },
-	[RETRO_DEVICE_ID_JOYPAD_RIGHT]  = { "RIGHTARROW", K_RIGHTARROW, "invuse" },
-	[RETRO_DEVICE_ID_JOYPAD_A]      = { "AUX1",       K_AUX1,       "" }, /* Menu Select */
-	[RETRO_DEVICE_ID_JOYPAD_X]      = { 0 },
-	[RETRO_DEVICE_ID_JOYPAD_L]      = { "AUX3",       K_AUX3,       "+speed" },
-	[RETRO_DEVICE_ID_JOYPAD_R]      = { "AUX5",       K_AUX5,       "+movedown" },
-	[RETRO_DEVICE_ID_JOYPAD_L2]     = { "AUX6",       K_AUX6,       "+moveup" },
-	[RETRO_DEVICE_ID_JOYPAD_R2]     = { "AUX7",       K_AUX7,       "+attack" },
-	[RETRO_DEVICE_ID_JOYPAD_L3]     = { 0 },
-	[RETRO_DEVICE_ID_JOYPAD_R3]     = { "AUX8",       K_AUX8,       "invdrop" },
+   [RETRO_DEVICE_ID_JOYPAD_B]      = { "AUX4",       K_AUX4,       "" }, /* Menu Cancel */
+   [RETRO_DEVICE_ID_JOYPAD_Y]      = { "AUX2",       K_AUX2,       "weapnext" },
+   [RETRO_DEVICE_ID_JOYPAD_SELECT] = { "SELECT",     K_ENTER,      "help" },
+   [RETRO_DEVICE_ID_JOYPAD_START]  = { "START",      K_ESCAPE,     "" }, /* Menu Show */
+   [RETRO_DEVICE_ID_JOYPAD_UP]     = { "UPARROW",    K_UPARROW,    "invprev" },
+   [RETRO_DEVICE_ID_JOYPAD_DOWN]   = { "DOWNARROW",  K_DOWNARROW,  "invnext" },
+   [RETRO_DEVICE_ID_JOYPAD_LEFT]   = { "LEFTARROW",  K_LEFTARROW,  "inven" },
+   [RETRO_DEVICE_ID_JOYPAD_RIGHT]  = { "RIGHTARROW", K_RIGHTARROW, "invuse" },
+   [RETRO_DEVICE_ID_JOYPAD_A]      = { "AUX1",       K_AUX1,       "" }, /* Menu Select */
+   [RETRO_DEVICE_ID_JOYPAD_X]      = { 0 },
+   [RETRO_DEVICE_ID_JOYPAD_L]      = { "AUX3",       K_AUX3,       "+speed" },
+   [RETRO_DEVICE_ID_JOYPAD_R]      = { "AUX5",       K_AUX5,       "+movedown" },
+   [RETRO_DEVICE_ID_JOYPAD_L2]     = { "AUX6",       K_AUX6,       "+moveup" },
+   [RETRO_DEVICE_ID_JOYPAD_R2]     = { "AUX7",       K_AUX7,       "+attack" },
+   [RETRO_DEVICE_ID_JOYPAD_L3]     = { 0 },
+   [RETRO_DEVICE_ID_JOYPAD_R3]     = { "AUX8",       K_AUX8,       "invdrop" },
 };
 #define INPUT_BINDS_PAD_LEN (sizeof(input_binds_pad) / sizeof(input_binds_pad[0]))
 
@@ -246,7 +250,7 @@ enum input_kb_key_type
 static unsigned input_kb_map[KB_KEY_LAST] = {0};
 
 typedef struct {
-	char *key;
+   char *key;
    enum input_kb_key_type type;
    unsigned default_id;
 } input_kb_map_option_t;
@@ -526,7 +530,7 @@ static bool context_needs_reinit = true;
 #ifdef HAVE_OPENGL
 void GL_DrawPolygon(GLenum prim, int num)
 {
-	qglDrawElements(prim, num, GL_UNSIGNED_SHORT, indices);
+   qglDrawElements(prim, num, GL_UNSIGNED_SHORT, indices);
 }
 
 void glVertexAttribPointerMapped(int id, void* ptr)
@@ -547,59 +551,59 @@ void glVertexAttribPointerMapped(int id, void* ptr)
 
 static bool initialize_gl()
 {
-	funcs[0].ptr  = qglTexImage2D         = (void (*)(GLenum,  GLint,  GLint,  GLsizei,  GLsizei,  GLint,  GLenum,  GLenum,  const GLvoid *))hw_render.get_proc_address ("glTexImage2D");
-	funcs[1].ptr  = qglTexSubImage2D      = (void (*)(GLenum,  GLint,  GLint,  GLint,  GLsizei,  GLsizei,  GLenum,  GLenum,  const GLvoid *))hw_render.get_proc_address ("glTexSubImage2D");
-	funcs[2].ptr  = qglTexParameteri      = (void (*)(GLenum,  GLenum,  GLint))hw_render.get_proc_address ("glTexParameteri");
-	funcs[3].ptr  = qglBindFramebuffer    = (void (*)(GLenum,  GLuint))hw_render.get_proc_address ("glBindFramebuffer");
-	funcs[4].ptr  = qglGenerateMipmap     = (void (*)(GLenum))hw_render.get_proc_address ("glGenerateMipmap");
-	funcs[5].ptr  = qglBlendFunc          = (void (*)(GLenum,  GLenum))hw_render.get_proc_address ("glBlendFunc");
-	funcs[6].ptr  = qglTexSubImage2D      = (void (*)(GLenum,  GLint,  GLint,  GLint,  GLsizei,  GLsizei,  GLenum,  GLenum,  const GLvoid *))hw_render.get_proc_address ("glTexSubImage2D");
-	funcs[7].ptr  = qglDepthMask          = (void (*)(GLboolean))hw_render.get_proc_address ("glDepthMask");
-	funcs[8].ptr  = qglPushMatrix         = hw_render.get_proc_address ("glPushMatrix");
-	funcs[9].ptr  = qglRotatef            = (void (*)(GLfloat,  GLfloat,  GLfloat,  GLfloat))hw_render.get_proc_address ("glRotatef");
-	funcs[10].ptr = qglTranslatef         = (void (*)(GLfloat,  GLfloat,  GLfloat))hw_render.get_proc_address ("glTranslatef");
-	funcs[11].ptr = qglDepthRange         = (void (*)(GLdouble,  GLdouble))hw_render.get_proc_address ("glDepthRange");
-	funcs[12].ptr = qglClear              = (void (*)(GLbitfield))hw_render.get_proc_address ("glClear");
-	funcs[13].ptr = qglCullFace           = (void (*)(GLenum))hw_render.get_proc_address ("glCullFace");
-	funcs[14].ptr = qglClearColor         = (void (*)(GLfloat,  GLfloat,  GLfloat,  GLfloat))hw_render.get_proc_address ("glClearColor");
-	funcs[15].ptr = qglEnable             = (void (*)(GLenum))hw_render.get_proc_address ("glEnable");
-	funcs[16].ptr = qglDisable            = (void (*)(GLenum))hw_render.get_proc_address ("glDisable");
-	funcs[17].ptr = qglEnableClientState  = (void (*)(GLenum))hw_render.get_proc_address ("glEnableClientState");
-	funcs[18].ptr = qglDisableClientState = (void (*)(GLenum))hw_render.get_proc_address ("glDisableClientState");
-	funcs[19].ptr = qglPopMatrix          = hw_render.get_proc_address ("glPopMatrix");
-	funcs[20].ptr = qglGetFloatv          = (void (*)(GLenum,  GLfloat *))hw_render.get_proc_address ("glGetFloatv");
-	funcs[21].ptr = qglOrtho              = (void (*)(GLdouble,  GLdouble,  GLdouble,  GLdouble,  GLdouble,  GLdouble))hw_render.get_proc_address ("glOrtho");
-	funcs[22].ptr = qglFrustum            = (void (*)(GLdouble,  GLdouble,  GLdouble,  GLdouble,  GLdouble,  GLdouble))hw_render.get_proc_address ("glFrustum");
-	funcs[23].ptr = qglLoadMatrixf        = (void (*)(const GLfloat *))hw_render.get_proc_address ("glLoadMatrixf");
-	funcs[24].ptr = qglLoadIdentity       = hw_render.get_proc_address ("glLoadIdentity");
-	funcs[25].ptr = qglMatrixMode         = (void (*)(GLenum))hw_render.get_proc_address ("glMatrixMode");
-	funcs[26].ptr = qglBindTexture        = (void (*)(GLenum,  GLuint))hw_render.get_proc_address ("glBindTexture");
-	funcs[27].ptr = qglReadPixels         = (void (*)(GLint,  GLint,  GLsizei,  GLsizei,  GLenum,  GLenum,  GLvoid *))hw_render.get_proc_address ("glReadPixels");
-	funcs[28].ptr = qglPolygonMode        = (void (*)(GLenum,  GLenum))hw_render.get_proc_address ("glPolygonMode");
-	funcs[29].ptr = qglVertexPointer      = (void (*)(GLint,  GLenum,  GLsizei,  const GLvoid *))hw_render.get_proc_address ("glVertexPointer");
-	funcs[30].ptr = qglTexCoordPointer    = (void (*)(GLint,  GLenum,  GLsizei,  const GLvoid *))hw_render.get_proc_address ("glTexCoordPointer");
-	funcs[31].ptr = qglColorPointer       = (void (*)(GLint,  GLenum,  GLsizei,  const GLvoid *))hw_render.get_proc_address ("glColorPointer");
-	funcs[32].ptr = qglDrawElements       = (void (*)(GLenum,  GLsizei,  GLenum,  const GLvoid *))hw_render.get_proc_address ("glDrawElements");
-	funcs[33].ptr = qglViewport           = (void (*)(GLint,  GLint,  GLsizei,  GLsizei))hw_render.get_proc_address ("glViewport");
-	funcs[34].ptr = qglDeleteTextures     = (void (*)(GLsizei,  const GLuint *))hw_render.get_proc_address ("glDeleteTextures");
-	funcs[35].ptr = qglClearStencil       = (void (*)(GLint))hw_render.get_proc_address ("glClearStencil");
-	funcs[36].ptr = qglColor4f            = (void (*)(GLfloat,  GLfloat,  GLfloat,  GLfloat))hw_render.get_proc_address ("glColor4f");
-	funcs[37].ptr = qglScissor            = (void (*)(GLint,  GLint,  GLsizei,  GLsizei))hw_render.get_proc_address ("glScissor");
-	funcs[38].ptr = qglStencilFunc        = (void (*)(GLenum,  GLint,  GLuint))hw_render.get_proc_address ("glStencilFunc");
-	funcs[39].ptr = qglStencilOp          = (void (*)(GLenum,  GLenum,  GLenum))hw_render.get_proc_address ("glStencilOp");
-	funcs[40].ptr = qglScalef             = (void (*)(GLfloat,  GLfloat,  GLfloat))hw_render.get_proc_address ("glScalef");
-	funcs[41].ptr = qglDepthFunc          = (void (*)(GLenum))hw_render.get_proc_address ("glDepthFunc");
-	funcs[42].ptr = qglTexEnvi            = (void (*)(GLenum,  GLenum,  GLint))hw_render.get_proc_address ("glTexEnvi");
-	funcs[43].ptr = qglAlphaFunc          = (void (*)(GLenum,  GLfloat))hw_render.get_proc_address ("glAlphaFunc");
-	
-	if (log_cb) {
-		int i;
-		for (i = 0; i < GL_FUNCS_NUM; i++) {
-			if (!funcs[i].ptr) log_cb(RETRO_LOG_ERROR, "vitaQuakeII: cannot get GL function #%d symbol.\n", i);
-		}
-	}
-	
-	return true;
+   funcs[0].ptr  = qglTexImage2D         = (void (*)(GLenum,  GLint,  GLint,  GLsizei,  GLsizei,  GLint,  GLenum,  GLenum,  const GLvoid *))hw_render.get_proc_address ("glTexImage2D");
+   funcs[1].ptr  = qglTexSubImage2D      = (void (*)(GLenum,  GLint,  GLint,  GLint,  GLsizei,  GLsizei,  GLenum,  GLenum,  const GLvoid *))hw_render.get_proc_address ("glTexSubImage2D");
+   funcs[2].ptr  = qglTexParameteri      = (void (*)(GLenum,  GLenum,  GLint))hw_render.get_proc_address ("glTexParameteri");
+   funcs[3].ptr  = qglBindFramebuffer    = (void (*)(GLenum,  GLuint))hw_render.get_proc_address ("glBindFramebuffer");
+   funcs[4].ptr  = qglGenerateMipmap     = (void (*)(GLenum))hw_render.get_proc_address ("glGenerateMipmap");
+   funcs[5].ptr  = qglBlendFunc          = (void (*)(GLenum,  GLenum))hw_render.get_proc_address ("glBlendFunc");
+   funcs[6].ptr  = qglTexSubImage2D      = (void (*)(GLenum,  GLint,  GLint,  GLint,  GLsizei,  GLsizei,  GLenum,  GLenum,  const GLvoid *))hw_render.get_proc_address ("glTexSubImage2D");
+   funcs[7].ptr  = qglDepthMask          = (void (*)(GLboolean))hw_render.get_proc_address ("glDepthMask");
+   funcs[8].ptr  = qglPushMatrix         = hw_render.get_proc_address ("glPushMatrix");
+   funcs[9].ptr  = qglRotatef            = (void (*)(GLfloat,  GLfloat,  GLfloat,  GLfloat))hw_render.get_proc_address ("glRotatef");
+   funcs[10].ptr = qglTranslatef         = (void (*)(GLfloat,  GLfloat,  GLfloat))hw_render.get_proc_address ("glTranslatef");
+   funcs[11].ptr = qglDepthRange         = (void (*)(GLdouble,  GLdouble))hw_render.get_proc_address ("glDepthRange");
+   funcs[12].ptr = qglClear              = (void (*)(GLbitfield))hw_render.get_proc_address ("glClear");
+   funcs[13].ptr = qglCullFace           = (void (*)(GLenum))hw_render.get_proc_address ("glCullFace");
+   funcs[14].ptr = qglClearColor         = (void (*)(GLfloat,  GLfloat,  GLfloat,  GLfloat))hw_render.get_proc_address ("glClearColor");
+   funcs[15].ptr = qglEnable             = (void (*)(GLenum))hw_render.get_proc_address ("glEnable");
+   funcs[16].ptr = qglDisable            = (void (*)(GLenum))hw_render.get_proc_address ("glDisable");
+   funcs[17].ptr = qglEnableClientState  = (void (*)(GLenum))hw_render.get_proc_address ("glEnableClientState");
+   funcs[18].ptr = qglDisableClientState = (void (*)(GLenum))hw_render.get_proc_address ("glDisableClientState");
+   funcs[19].ptr = qglPopMatrix          = hw_render.get_proc_address ("glPopMatrix");
+   funcs[20].ptr = qglGetFloatv          = (void (*)(GLenum,  GLfloat *))hw_render.get_proc_address ("glGetFloatv");
+   funcs[21].ptr = qglOrtho              = (void (*)(GLdouble,  GLdouble,  GLdouble,  GLdouble,  GLdouble,  GLdouble))hw_render.get_proc_address ("glOrtho");
+   funcs[22].ptr = qglFrustum            = (void (*)(GLdouble,  GLdouble,  GLdouble,  GLdouble,  GLdouble,  GLdouble))hw_render.get_proc_address ("glFrustum");
+   funcs[23].ptr = qglLoadMatrixf        = (void (*)(const GLfloat *))hw_render.get_proc_address ("glLoadMatrixf");
+   funcs[24].ptr = qglLoadIdentity       = hw_render.get_proc_address ("glLoadIdentity");
+   funcs[25].ptr = qglMatrixMode         = (void (*)(GLenum))hw_render.get_proc_address ("glMatrixMode");
+   funcs[26].ptr = qglBindTexture        = (void (*)(GLenum,  GLuint))hw_render.get_proc_address ("glBindTexture");
+   funcs[27].ptr = qglReadPixels         = (void (*)(GLint,  GLint,  GLsizei,  GLsizei,  GLenum,  GLenum,  GLvoid *))hw_render.get_proc_address ("glReadPixels");
+   funcs[28].ptr = qglPolygonMode        = (void (*)(GLenum,  GLenum))hw_render.get_proc_address ("glPolygonMode");
+   funcs[29].ptr = qglVertexPointer      = (void (*)(GLint,  GLenum,  GLsizei,  const GLvoid *))hw_render.get_proc_address ("glVertexPointer");
+   funcs[30].ptr = qglTexCoordPointer    = (void (*)(GLint,  GLenum,  GLsizei,  const GLvoid *))hw_render.get_proc_address ("glTexCoordPointer");
+   funcs[31].ptr = qglColorPointer       = (void (*)(GLint,  GLenum,  GLsizei,  const GLvoid *))hw_render.get_proc_address ("glColorPointer");
+   funcs[32].ptr = qglDrawElements       = (void (*)(GLenum,  GLsizei,  GLenum,  const GLvoid *))hw_render.get_proc_address ("glDrawElements");
+   funcs[33].ptr = qglViewport           = (void (*)(GLint,  GLint,  GLsizei,  GLsizei))hw_render.get_proc_address ("glViewport");
+   funcs[34].ptr = qglDeleteTextures     = (void (*)(GLsizei,  const GLuint *))hw_render.get_proc_address ("glDeleteTextures");
+   funcs[35].ptr = qglClearStencil       = (void (*)(GLint))hw_render.get_proc_address ("glClearStencil");
+   funcs[36].ptr = qglColor4f            = (void (*)(GLfloat,  GLfloat,  GLfloat,  GLfloat))hw_render.get_proc_address ("glColor4f");
+   funcs[37].ptr = qglScissor            = (void (*)(GLint,  GLint,  GLsizei,  GLsizei))hw_render.get_proc_address ("glScissor");
+   funcs[38].ptr = qglStencilFunc        = (void (*)(GLenum,  GLint,  GLuint))hw_render.get_proc_address ("glStencilFunc");
+   funcs[39].ptr = qglStencilOp          = (void (*)(GLenum,  GLenum,  GLenum))hw_render.get_proc_address ("glStencilOp");
+   funcs[40].ptr = qglScalef             = (void (*)(GLfloat,  GLfloat,  GLfloat))hw_render.get_proc_address ("glScalef");
+   funcs[41].ptr = qglDepthFunc          = (void (*)(GLenum))hw_render.get_proc_address ("glDepthFunc");
+   funcs[42].ptr = qglTexEnvi            = (void (*)(GLenum,  GLenum,  GLint))hw_render.get_proc_address ("glTexEnvi");
+   funcs[43].ptr = qglAlphaFunc          = (void (*)(GLenum,  GLfloat))hw_render.get_proc_address ("glAlphaFunc");
+
+   if (log_cb) {
+      int i;
+      for (i = 0; i < GL_FUNCS_NUM; i++) {
+         if (!funcs[i].ptr) log_cb(RETRO_LOG_ERROR, "vitaQuakeII: cannot get GL function #%d symbol.\n", i);
+      }
+   }
+
+   return true;
 }
 
 int GLimp_Init( void *hinstance, void *wndproc )
@@ -613,11 +617,11 @@ void GLimp_AppActivate( qboolean active )
 
 void GLimp_BeginFrame( float camera_separation )
 {
-	gVertexBuffer = gVertexBufferPtr;
-	gColorBuffer = gColorBufferPtr;
-	gTexCoordBuffer = gTexCoordBufferPtr;
-	qglEnableClientState(GL_VERTEX_ARRAY);
-	qglAlphaFunc(GL_GREATER,  0.666);
+   gVertexBuffer = gVertexBufferPtr;
+   gColorBuffer = gColorBufferPtr;
+   gTexCoordBuffer = gTexCoordBufferPtr;
+   qglEnableClientState(GL_VERTEX_ARRAY);
+   qglAlphaFunc(GL_GREATER,  0.666);
 }
 
 void GLimp_EndFrame (void)
@@ -627,42 +631,42 @@ void GLimp_EndFrame (void)
 qboolean GLimp_InitGL (void)
 {
    int i;
-	indices = (uint16_t*)malloc(sizeof(uint16_t)*MAX_INDICES);
-	for (i=0;i<MAX_INDICES;i++){
-		indices[i] = i;
-	}
-	gVertexBufferPtr = (float*)malloc(0x400000);
-	gColorBufferPtr = (float*)malloc(0x200000);
-	gTexCoordBufferPtr = (float*)malloc(0x200000);
-	gl_set = true;
-	return true;
+   indices = (uint16_t*)malloc(sizeof(uint16_t)*MAX_INDICES);
+   for (i=0;i<MAX_INDICES;i++){
+      indices[i] = i;
+   }
+   gVertexBufferPtr = (float*)malloc(0x400000);
+   gColorBufferPtr = (float*)malloc(0x200000);
+   gTexCoordBufferPtr = (float*)malloc(0x200000);
+   gl_set = true;
+   return true;
 }
 
 void GLimp_DeinitGL (void)
 {
-	if (indices)
-		free(indices);
-	indices = NULL;
+   if (indices)
+      free(indices);
+   indices = NULL;
 
-	if (gVertexBufferPtr)
-		free(gVertexBufferPtr);
-	gVertexBufferPtr = NULL;
+   if (gVertexBufferPtr)
+      free(gVertexBufferPtr);
+   gVertexBufferPtr = NULL;
 
-	if (gColorBufferPtr)
-		free(gColorBufferPtr);
-	gColorBufferPtr = NULL;
+   if (gColorBufferPtr)
+      free(gColorBufferPtr);
+   gColorBufferPtr = NULL;
 
-	if (gTexCoordBufferPtr)
-		free(gTexCoordBufferPtr);
-	gTexCoordBufferPtr = NULL;
+   if (gTexCoordBufferPtr)
+      free(gTexCoordBufferPtr);
+   gTexCoordBufferPtr = NULL;
 
-	gl_set = false;
+   gl_set = false;
 }
 #endif
 
 static void context_destroy(void) 
 {
-	context_needs_reinit = true;
+   context_needs_reinit = true;
 }
 
 extern void restore_textures(void);
@@ -670,29 +674,29 @@ bool first_reset = true;
 
 static void context_reset(void)
 {
-	if (!context_needs_reinit)
-		return;
+   if (!context_needs_reinit)
+      return;
 #ifdef HAVE_OPENGL
-	glsm_ctl(GLSM_CTL_STATE_CONTEXT_RESET, NULL);
+   glsm_ctl(GLSM_CTL_STATE_CONTEXT_RESET, NULL);
 
    if (!libretro_shared_context)
       if (!glsm_ctl(GLSM_CTL_STATE_SETUP, NULL))
          return;
-	
-	if (!is_soft_render) {
-		initialize_gl();
-		if (!first_reset)
-			restore_textures();
-		first_reset = false;
-	}
+
+   if (!is_soft_render) {
+      initialize_gl();
+      if (!first_reset)
+         restore_textures();
+      first_reset = false;
+   }
 #endif
-	context_needs_reinit = false;
+   context_needs_reinit = false;
 }
 
 #ifdef HAVE_OPENGL
 static bool context_framebuffer_lock(void *data)
 {
-    return false;
+   return false;
 }
 
 bool initialize_opengl(void)
@@ -742,7 +746,7 @@ void destroy_opengl(void)
 
 int	curtime;
 char cmd_line[256];
-	
+
 static byte	*membase    = NULL;
 static int  hunkmaxsize = 0;
 static int  cursize     = 0;
@@ -760,14 +764,14 @@ float scr_aspect = 960.0f / 544.0f;
 void *GetGameAPI (void *import);
 qboolean	NET_CompareAdr (netadr_t a, netadr_t b)
 {
-	if (a.ip[0] == b.ip[0] && a.ip[1] == b.ip[1] && a.ip[2] == b.ip[2] && a.ip[3] == b.ip[3] && a.port == b.port)
-		return true;
-	return false;
+   if (a.ip[0] == b.ip[0] && a.ip[1] == b.ip[1] && a.ip[2] == b.ip[2] && a.ip[3] == b.ip[3] && a.port == b.port)
+      return true;
+   return false;
 }
 
 void NET_Init (void)
 {
-	
+
 }
 
 void NET_Sleep(int msec)
@@ -780,104 +784,104 @@ void NET_Sleep(int msec)
 
 typedef struct
 {
-	byte	data[MAX_MSGLEN];
-	int		datalen;
+   byte	data[MAX_MSGLEN];
+   int		datalen;
 } loopmsg_t;
 
 typedef struct
 {
-	loopmsg_t	msgs[MAX_LOOPBACK];
-	int			get, send;
+   loopmsg_t	msgs[MAX_LOOPBACK];
+   int			get, send;
 } loopback_t;
 
 loopback_t	loopbacks[2];
 
 qboolean	NET_GetLoopPacket (netsrc_t sock, netadr_t *net_from, sizebuf_t *net_message)
 {
-	int		i;
-	loopback_t	*loop;
+   int		i;
+   loopback_t	*loop;
 
-	loop = &loopbacks[sock];
+   loop = &loopbacks[sock];
 
-	if (loop->send - loop->get > MAX_LOOPBACK)
-		loop->get = loop->send - MAX_LOOPBACK;
+   if (loop->send - loop->get > MAX_LOOPBACK)
+      loop->get = loop->send - MAX_LOOPBACK;
 
-	if (loop->get >= loop->send)
-		return false;
+   if (loop->get >= loop->send)
+      return false;
 
-	i = loop->get & (MAX_LOOPBACK-1);
-	loop->get++;
+   i = loop->get & (MAX_LOOPBACK-1);
+   loop->get++;
 
-	memcpy (net_message->data, loop->msgs[i].data, loop->msgs[i].datalen);
-	net_message->cursize = loop->msgs[i].datalen;
-	*net_from = net_local_adr;
-	return true;
+   memcpy (net_message->data, loop->msgs[i].data, loop->msgs[i].datalen);
+   net_message->cursize = loop->msgs[i].datalen;
+   *net_from = net_local_adr;
+   return true;
 
 }
 
 
 void NET_SendLoopPacket (netsrc_t sock, int length, void *data, netadr_t to)
 {
-	int		i;
-	loopback_t	*loop;
+   int		i;
+   loopback_t	*loop;
 
-	loop = &loopbacks[sock^1];
+   loop = &loopbacks[sock^1];
 
-	i = loop->send & (MAX_LOOPBACK-1);
-	loop->send++;
+   i = loop->send & (MAX_LOOPBACK-1);
+   loop->send++;
 
-	memcpy (loop->msgs[i].data, data, length);
-	loop->msgs[i].datalen = length;
+   memcpy (loop->msgs[i].data, data, length);
+   loop->msgs[i].datalen = length;
 }
 
 qboolean	NET_CompareBaseAdr (netadr_t a, netadr_t b)
 {
-	if (a.type != b.type)
-		return false;
+   if (a.type != b.type)
+      return false;
 
-	if (a.type == NA_LOOPBACK)
-		return true;
+   if (a.type == NA_LOOPBACK)
+      return true;
 
-	if (a.type == NA_IP)
-	{
-		if (a.ip[0] == b.ip[0] && a.ip[1] == b.ip[1] && a.ip[2] == b.ip[2] && a.ip[3] == b.ip[3])
-			return true;
-		return false;
-	}
+   if (a.type == NA_IP)
+   {
+      if (a.ip[0] == b.ip[0] && a.ip[1] == b.ip[1] && a.ip[2] == b.ip[2] && a.ip[3] == b.ip[3])
+         return true;
+      return false;
+   }
 
-	if (a.type == NA_IPX)
-	{
-		if ((memcmp(a.ipx, b.ipx, 10) == 0))
-			return true;
-		return false;
-	}
-	return false;
+   if (a.type == NA_IPX)
+   {
+      if ((memcmp(a.ipx, b.ipx, 10) == 0))
+         return true;
+      return false;
+   }
+   return false;
 }
 
 char	*NET_AdrToString (netadr_t a)
 {
-	static	char	s[64];
+   static	char	s[64];
 #if 0
-	Com_sprintf (s, sizeof(s), "%i.%i.%i.%i:%i", a.ip[0], a.ip[1], a.ip[2], a.ip[3], ntohs(a.port));
+   Com_sprintf (s, sizeof(s), "%i.%i.%i.%i:%i", a.ip[0], a.ip[1], a.ip[2], a.ip[3], ntohs(a.port));
 #endif
 
-	return s;
+   return s;
 }
 
 qboolean	NET_StringToAdr (char *s, netadr_t *a)
 {
-	memset (a, 0, sizeof(*a));
-	a->type = NA_LOOPBACK;
-	return true;
+   memset (a, 0, sizeof(*a));
+   a->type = NA_LOOPBACK;
+   return true;
 }
 
 void NET_SendPacket (netsrc_t sock, int length, void *data, netadr_t to)
 {
-	if ( to.type == NA_LOOPBACK )
-	{
-		NET_SendLoopPacket (sock, length, data, to);
-		return;
-	}
+   if ( to.type == NA_LOOPBACK )
+   {
+      NET_SendLoopPacket (sock, length, data, to);
+      return;
+   }
 }
 
 void	NET_Config (qboolean multiplayer)
@@ -886,15 +890,15 @@ void	NET_Config (qboolean multiplayer)
 
 qboolean	NET_IsLocalAddress (netadr_t adr)
 {
-	return NET_CompareAdr (adr, net_local_adr);
+   return NET_CompareAdr (adr, net_local_adr);
 }
 
 qboolean	NET_GetPacket (netsrc_t sock, netadr_t *net_from, sizebuf_t *net_message)
 {
-	if (NET_GetLoopPacket (sock, net_from, net_message))
-		return true;
-	
-	return false;
+   if (NET_GetLoopPacket (sock, net_from, net_message))
+      return true;
+
+   return false;
 }
 
 void GLimp_Shutdown( void )
@@ -911,7 +915,7 @@ static void extract_directory(char *out_dir, const char *in_dir, size_t size)
    /* Remove trailing slash, if required */
    len = strlen(out_dir);
    if ((len > 0) &&
-       (out_dir[len - 1] == PATH_DEFAULT_SLASH_C()))
+         (out_dir[len - 1] == PATH_DEFAULT_SLASH_C()))
       out_dir[len - 1] = '\0';
 
    /* If parent directory is an empty string,
@@ -921,36 +925,37 @@ static void extract_directory(char *out_dir, const char *in_dir, size_t size)
 }
 
 int y = 20;
-void LOG_FILE(const char *format, ...){
-        va_list arg;
-	int done;
-	va_start(arg, format);
-	char msg[512];
-	done = vsnprintf(msg, 500, format, arg);
-	va_end(arg);
-	if (log_cb)
-		log_cb(RETRO_LOG_INFO, "LOG2FILE: %s", msg);
-	else
-		fprintf(stderr, "LOG2FILE: %s\n", msg);
+static void LOG_FILE(const char *format, ...)
+{
+   va_list arg;
+   int done;
+   va_start(arg, format);
+   char msg[512];
+   done = vsnprintf(msg, 500, format, arg);
+   va_end(arg);
+   if (log_cb)
+      log_cb(RETRO_LOG_DEBUG, "LOG2FILE: %s", msg);
+   else
+      fprintf(stderr, "LOG2FILE: %s\n", msg);
 }
 
 void Sys_Error (char *error, ...)
 {
-	char str[512] = { 0 };
-	va_list		argptr;
+   char str[512] = { 0 };
+   va_list		argptr;
 
-	va_start (argptr,error);
-	vsnprintf (str,512, error, argptr);
-	va_end (argptr);
-	LOG_FILE("Sys_Error: %s", str);
-	Sys_Quit();
+   va_start (argptr,error);
+   vsnprintf (str,512, error, argptr);
+   va_end (argptr);
+   LOG_FILE("Sys_Error: %s", str);
+   Sys_Quit();
 }
 
 void Sys_Quit (void)
 {
-	LOG_FILE("Sys_Quit called");
-	environ_cb(RETRO_ENVIRONMENT_SHUTDOWN, NULL);
-	shutdown_core = true;
+   LOG_FILE("Sys_Quit called");
+   environ_cb(RETRO_ENVIRONMENT_SHUTDOWN, NULL);
+   shutdown_core = true;
 }
 
 void Sys_UnloadGame (void)
@@ -960,36 +965,37 @@ void Sys_UnloadGame (void)
 
 void *Sys_GetGameAPI (void *parms)
 {
-	return GetGameAPI (parms);
+   return GetGameAPI (parms);
 }
 
 
 char *Sys_ConsoleInput (void)
 {
-	return NULL;
+   return NULL;
 }
 
 void Sys_ConsoleOutput (char *string)
 {
-	LOG_FILE("%s",string);
+   //LOG_FILE("%s",string);
 }
 
-void utf2ascii(char* dst, uint16_t* src){
-	if(!src || !dst)return;
-	while(*src)*(dst++)=(*(src++))&0xFF;
-	*dst=0x00;
+void utf2ascii(char* dst, uint16_t* src)
+{
+   if(!src || !dst)return;
+   while(*src)*(dst++)=(*(src++))&0xFF;
+   *dst=0x00;
 }
 
 void Sys_DefaultConfig(void)
 {
-	Cbuf_AddText ("lookstrafe \"1.000000\"\n");
-	Cbuf_AddText ("lookspring \"0.000000\"\n");
+   Cbuf_AddText ("lookstrafe \"1.000000\"\n");
+   Cbuf_AddText ("lookspring \"0.000000\"\n");
 }
 
 extern menufield_s s_maxclients_field;
 char *targetKeyboard;
 void Sys_SetKeys(uint32_t keys, uint32_t state){
-	Key_Event(keys, state, Sys_Milliseconds());
+   Key_Event(keys, state, Sys_Milliseconds());
 }
 
 void retro_set_controller_port_device(unsigned port, unsigned device)
@@ -1010,7 +1016,7 @@ void retro_set_controller_port_device(unsigned port, unsigned device)
          break;
       default:
          if (log_cb)
-				log_cb(RETRO_LOG_INFO,
+            log_cb(RETRO_LOG_INFO,
                   "Invalid libretro controller device, using default: RETRO_DEVICE_JOYPAD\n");
          quake_input_device = RETRO_DEVICE_JOYPAD;
          break;
@@ -1040,15 +1046,15 @@ void retro_set_controller_port_device(unsigned port, unsigned device)
 
 void Sys_SendKeyEvents (void)
 {
-	int16_t ret = 0;
+   int16_t ret = 0;
 
-	if (!poll_cb)
-		return;
+   if (!poll_cb)
+      return;
 
-	poll_cb();
+   poll_cb();
 
-	if (!input_cb)
-		return;
+   if (!input_cb)
+      return;
 
    if (quake_input_device == RETRO_DEVICE_KEYBOARD)
    {
@@ -1074,7 +1080,7 @@ void Sys_SendKeyEvents (void)
       /* Mouse input */
       Sys_SetKeys(input_binds_kb[KB_KEY_LAST].keynum,
             input_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT) ?
-                  1 : 0);
+            1 : 0);
    }
    else
    {
@@ -1139,7 +1145,7 @@ void Sys_SendKeyEvents (void)
       SET_BOUND_KEY_PAD(ret, RETRO_DEVICE_ID_JOYPAD_A);
    }
 
-	sys_frame_time = Sys_Milliseconds();
+   sys_frame_time = Sys_Milliseconds();
 }
 
 
@@ -1153,90 +1159,90 @@ void Sys_CopyProtect (void)
 
 char *Sys_GetClipboardData( void )
 {
-	return NULL;
+   return NULL;
 }
 
 void *Hunk_Begin (int maxsize)
 {
-	/* reserve a huge chunk of memory, but don't commit any yet */
-	hunkmaxsize = maxsize;
-	cursize     = 0;
-	membase     = malloc(hunkmaxsize);
+   /* reserve a huge chunk of memory, but don't commit any yet */
+   hunkmaxsize = maxsize;
+   cursize     = 0;
+   membase     = malloc(hunkmaxsize);
 
-	if (!membase)
-		Sys_Error("unable to allocate %d bytes", hunkmaxsize);
-	else
-		memset (membase, 0, hunkmaxsize);
+   if (!membase)
+      Sys_Error("unable to allocate %d bytes", hunkmaxsize);
+   else
+      memset (membase, 0, hunkmaxsize);
 
-	return (void*)membase;
+   return (void*)membase;
 }
 
 void *Hunk_Alloc (int size)
 {
-	byte *buf;
+   byte *buf;
 
-	/* round to cacheline */
-	size = (size+31)&~31;
+   /* round to cacheline */
+   size = (size+31)&~31;
 
-	if (cursize + size > hunkmaxsize)
-		Sys_Error("Hunk_Alloc overflow");
+   if (cursize + size > hunkmaxsize)
+      Sys_Error("Hunk_Alloc overflow");
 
-	buf = membase + cursize;
-	cursize += size;
+   buf = membase + cursize;
+   cursize += size;
 
-	return buf;
+   return buf;
 }
 
 int Hunk_End (void)
 {
-	/* We would prefer to shrink the allocated memory
-	 * buffer to 'cursize' bytes here, but there exists
-	 * no robust cross-platform method for doing this
-	 * given that pointers to arbitrary locations in
-	 * the buffer are stored and used throughout the
-	 * codebase...
-	 * (i.e. realloc() would invalidate these pointers,
-	 * and break everything)
-	 * Attempts were made to allocate hunks dynamically,
-	 * storing them in an RBUF array - but the codebase
-	 * plays such dirty tricks with the returned pointers
-	 * that this turned out to be impractical (it would
-	 * have required a major rewrite of the renderers...) */
-	return cursize;
+   /* We would prefer to shrink the allocated memory
+    * buffer to 'cursize' bytes here, but there exists
+    * no robust cross-platform method for doing this
+    * given that pointers to arbitrary locations in
+    * the buffer are stored and used throughout the
+    * codebase...
+    * (i.e. realloc() would invalidate these pointers,
+    * and break everything)
+    * Attempts were made to allocate hunks dynamically,
+    * storing them in an RBUF array - but the codebase
+    * plays such dirty tricks with the returned pointers
+    * that this turned out to be impractical (it would
+    * have required a major rewrite of the renderers...) */
+   return cursize;
 }
 
 void Hunk_Free (void *base)
 {
-	if (base == membase)
-		membase = NULL;
+   if (base == membase)
+      membase = NULL;
 
-	if (base)
-		free(base);
+   if (base)
+      free(base);
 }
 
 int Sys_Milliseconds (void)
 {
-	static uint64_t	base;
+   static uint64_t	base;
 
-	uint64_t time = cpu_features_get_time_usec() / 1000;
-	
-	if (!base)
-	{
-		base = time;
-	}
+   uint64_t time = cpu_features_get_time_usec() / 1000;
 
-	curtime = (int)(time - base);
-	
-	return curtime;
+   if (!base)
+   {
+      base = time;
+   }
+
+   curtime = (int)(time - base);
+
+   return curtime;
 }
 
 void Sys_Mkdir (char *path)
 {
-	if (string_is_empty(path) ||
-		 path_is_directory(path))
-		return;
+   if (string_is_empty(path) ||
+         path_is_directory(path))
+      return;
 
-	path_mkdir(path);
+   path_mkdir(path);
 }
 
 static	char	findbase[MAX_OSPATH];
@@ -1250,27 +1256,27 @@ static int glob_match(char *pattern, char *text);
 /* Like glob_match, but match PATTERN against any final segment of TEXT.  */
 static int glob_match_after_star(char *pattern, char *text)
 {
-	register char *p = pattern, *t = text;
-	register char c, c1;
+   register char *p = pattern, *t = text;
+   register char c, c1;
 
-	while ((c = *p++) == '?' || c == '*')
-		if (c == '?' && *t++ == '\0')
-			return 0;
+   while ((c = *p++) == '?' || c == '*')
+      if (c == '?' && *t++ == '\0')
+         return 0;
 
-	if (c == '\0')
-		return 1;
+   if (c == '\0')
+      return 1;
 
-	if (c == '\\')
-		c1 = *p;
-	else
-		c1 = c;
+   if (c == '\\')
+      c1 = *p;
+   else
+      c1 = c;
 
-	while (1) {
-		if ((c == '[' || *t == c1) && glob_match(p - 1, t))
-			return 1;
-		if (*t++ == '\0')
-			return 0;
-	}
+   while (1) {
+      if ((c == '[' || *t == c1) && glob_match(p - 1, t))
+         return 1;
+      if (*t++ == '\0')
+         return 0;
+   }
 }
 
 /* Match the pattern PATTERN against the string TEXT;
@@ -1285,149 +1291,149 @@ static int glob_match_after_star(char *pattern, char *text)
    Any other character in the pattern must be matched exactly.
    To suppress the special syntactic significance of any of `[]*?!-\',
    and match the character exactly, precede it with a `\'.
-*/
+ */
 static int glob_match(char *pattern, char *text)
 {
-	register char *p = pattern, *t = text;
-	register char c;
+   register char *p = pattern, *t = text;
+   register char c;
 
-	while ((c = *p++) != '\0')
-		switch (c) {
-		case '?':
-			if (*t == '\0')
-				return 0;
-			else
-				++t;
-			break;
+   while ((c = *p++) != '\0')
+      switch (c) {
+         case '?':
+            if (*t == '\0')
+               return 0;
+            else
+               ++t;
+            break;
 
-		case '\\':
-			if (*p++ != *t++)
-				return 0;
-			break;
+         case '\\':
+            if (*p++ != *t++)
+               return 0;
+            break;
 
-		case '*':
-			return glob_match_after_star(p, t);
+         case '*':
+            return glob_match_after_star(p, t);
 
-		case '[':
-			{
-				register char c1 = *t++;
-				int invert;
+         case '[':
+            {
+               register char c1 = *t++;
+               int invert;
 
-				if (!c1)
-					return (0);
+               if (!c1)
+                  return (0);
 
-				invert = ((*p == '!') || (*p == '^'));
-				if (invert)
-					p++;
+               invert = ((*p == '!') || (*p == '^'));
+               if (invert)
+                  p++;
 
-				c = *p++;
-				while (1) {
-					register char cstart = c, cend = c;
+               c = *p++;
+               while (1) {
+                  register char cstart = c, cend = c;
 
-					if (c == '\\') {
-						cstart = *p++;
-						cend = cstart;
-					}
-					if (c == '\0')
-						return 0;
+                  if (c == '\\') {
+                     cstart = *p++;
+                     cend = cstart;
+                  }
+                  if (c == '\0')
+                     return 0;
 
-					c = *p++;
-					if (c == '-' && *p != ']') {
-						cend = *p++;
-						if (cend == '\\')
-							cend = *p++;
-						if (cend == '\0')
-							return 0;
-						c = *p++;
-					}
-					if (c1 >= cstart && c1 <= cend)
-						goto match;
-					if (c == ']')
-						break;
-				}
-				if (!invert)
-					return 0;
-				break;
+                  c = *p++;
+                  if (c == '-' && *p != ']') {
+                     cend = *p++;
+                     if (cend == '\\')
+                        cend = *p++;
+                     if (cend == '\0')
+                        return 0;
+                     c = *p++;
+                  }
+                  if (c1 >= cstart && c1 <= cend)
+                     goto match;
+                  if (c == ']')
+                     break;
+               }
+               if (!invert)
+                  return 0;
+               break;
 
-			  match:
-				/* Skip the rest of the [...] construct that already matched.  */
-				while (c != ']') {
-					if (c == '\0')
-						return 0;
-					c = *p++;
-					if (c == '\0')
-						return 0;
-					else if (c == '\\')
-						++p;
-				}
-				if (invert)
-					return 0;
-				break;
-			}
+match:
+               /* Skip the rest of the [...] construct that already matched.  */
+               while (c != ']') {
+                  if (c == '\0')
+                     return 0;
+                  c = *p++;
+                  if (c == '\0')
+                     return 0;
+                  else if (c == '\\')
+                     ++p;
+               }
+               if (invert)
+                  return 0;
+               break;
+            }
 
-		default:
-			if (c != *t++)
-				return 0;
-		}
+         default:
+            if (c != *t++)
+               return 0;
+      }
 
-	return *t == '\0';
+   return *t == '\0';
 }
 
 char *Sys_FindFirst (char *path, unsigned musthave, unsigned canhave)
 {
-	char *p;
+   char *p;
 
-	if (fdir != NULL)
-		Sys_Error ("Sys_BeginFind without close");
+   if (fdir != NULL)
+      Sys_Error ("Sys_BeginFind without close");
 
-	COM_FilePath (path, findbase);
-	strcpy(findbase, path);
+   COM_FilePath (path, findbase);
+   strcpy(findbase, path);
 
-	if ((p = strrchr(findbase, '/')) != NULL) {
-		*p = 0;
-		strcpy(findpattern, p + 1);
-	} else
-		strcpy(findpattern, "*");
+   if ((p = strrchr(findbase, '/')) != NULL) {
+      *p = 0;
+      strcpy(findpattern, p + 1);
+   } else
+      strcpy(findpattern, "*");
 
-	if (strcmp(findpattern, "*.*") == 0)
-		strcpy(findpattern, "*");
-	
-	fdir = retro_opendir(findbase);
-	if (fdir == NULL)
-		return NULL;
-	while ((retro_readdir(fdir)) > 0)
+   if (strcmp(findpattern, "*.*") == 0)
+      strcpy(findpattern, "*");
+
+   fdir = retro_opendir(findbase);
+   if (fdir == NULL)
+      return NULL;
+   while ((retro_readdir(fdir)) > 0)
    {
       if (!*findpattern || 
             glob_match(findpattern, retro_dirent_get_name(fdir)))
       {
-            sprintf (findpath, "%s/%s", findbase, retro_dirent_get_name(fdir));
-            return findpath;
+         sprintf (findpath, "%s/%s", findbase, retro_dirent_get_name(fdir));
+         return findpath;
       }
    }
-	return NULL;
+   return NULL;
 }
 
 char *Sys_FindNext (unsigned musthave, unsigned canhave)
 {
-	if (fdir == NULL)
-		return NULL;
-	while ((retro_readdir(fdir)) > 0)
+   if (fdir == NULL)
+      return NULL;
+   while ((retro_readdir(fdir)) > 0)
    {
       if (!*findpattern || glob_match(findpattern, retro_dirent_get_name(fdir)))
       {
-            sprintf (findpath, "%s/%s", findbase, retro_dirent_get_name(fdir));
-            return findpath;
+         sprintf (findpath, "%s/%s", findbase, retro_dirent_get_name(fdir));
+         return findpath;
       }
    }
-	return NULL;
+   return NULL;
 }
 
 void Sys_FindClose (void)
 {
-	if (fdir != NULL)
-		retro_closedir(fdir);
-		
-	fdir = NULL;
+   if (fdir != NULL)
+      retro_closedir(fdir);
+
+   fdir = NULL;
 }
 
 void	Sys_Init (void)
@@ -1488,7 +1494,7 @@ static unsigned sanitise_framerate(float target)
    }
 
    if ((supported_framerates[i] - target_int) <=
-       (target_int - supported_framerates[i - 1]))
+         (target_int - supported_framerates[i - 1]))
       return supported_framerates[i];
 
    return supported_framerates[i - 1];
@@ -1497,8 +1503,8 @@ static unsigned sanitise_framerate(float target)
 bool initial_resolution_set = false;
 static void update_variables(bool startup)
 {
-	struct retro_variable var;
-	struct retro_core_option_display option_display;
+   struct retro_variable var;
+   struct retro_core_option_display option_display;
 
    var.key = "vitaquakeii_framerate";
    var.value = NULL;
@@ -1570,28 +1576,28 @@ static void update_variables(bool startup)
             framerate_ms = 3;
             break;
          default:
-				framerate    = 60;
-				framerate_ms = 16;
-				break;
+            framerate    = 60;
+            framerate_ms = 16;
+            break;
       }
 
-		var.key = "vitaquakeii_gamma";
-		var.value = NULL;
-		libretro_gamma = 1.0f;
+      var.key = "vitaquakeii_gamma";
+      var.value = NULL;
+      libretro_gamma = 1.0f;
 
-		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-		{
-			/* Invert sense so greater = brighter,
-			 * and scale to a range of 0.5 to 1.3 */
-			float gamma_correction = atof(var.value);
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+      {
+         /* Invert sense so greater = brighter,
+          * and scale to a range of 0.5 to 1.3 */
+         float gamma_correction = atof(var.value);
 
-			if (gamma_correction < 0.2f)
-				gamma_correction = 0.2f;
-			if (gamma_correction > 1.0f)
-				gamma_correction = 1.0f;
+         if (gamma_correction < 0.2f)
+            gamma_correction = 0.2f;
+         if (gamma_correction > 1.0f)
+            gamma_correction = 1.0f;
 
-			libretro_gamma = (-1.0f * gamma_correction) + 1.5f;
-		}
+         libretro_gamma = (-1.0f * gamma_correction) + 1.5f;
+      }
 
 #ifdef HAVE_OPENGL
       var.key = "vitaquakeii_renderer";
@@ -1599,324 +1605,324 @@ static void update_variables(bool startup)
 
       enable_opengl = !environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) || strcmp(var.value, "software") != 0;
 
-		var.key = "vitaquakeii_gl_modulate";
-		var.value = NULL;
+      var.key = "vitaquakeii_gl_modulate";
+      var.value = NULL;
 
-		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-		{
-			libretro_gl_modulate = atof(var.value);
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+      {
+         libretro_gl_modulate = atof(var.value);
 
-			if (libretro_gl_modulate > 5.0f)
-				libretro_gl_modulate = 5.0f;
-			if (libretro_gl_modulate < 1.0f)
-				libretro_gl_modulate = 1.0f;
-		}
+         if (libretro_gl_modulate > 5.0f)
+            libretro_gl_modulate = 5.0f;
+         if (libretro_gl_modulate < 1.0f)
+            libretro_gl_modulate = 1.0f;
+      }
 
-		/* Hide irrelevant options */
-		option_display.visible = false;
+      /* Hide irrelevant options */
+      option_display.visible = false;
 
-		if (enable_opengl)
-		{
-			option_display.key = "vitaquakeii_sw_dithered_filtering";
-			environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
-		}
-		else
-		{
-			option_display.key = "vitaquakeii_gl_modulate";
-			environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+      if (enable_opengl)
+      {
+         option_display.key = "vitaquakeii_sw_dithered_filtering";
+         environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+      }
+      else
+      {
+         option_display.key = "vitaquakeii_gl_modulate";
+         environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 
-			option_display.key = "vitaquakeii_gl_texture_filtering";
-			environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+         option_display.key = "vitaquakeii_gl_texture_filtering";
+         environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 
-			option_display.key = "vitaquakeii_gl_shadows";
-			environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+         option_display.key = "vitaquakeii_gl_shadows";
+         environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 
-			option_display.key = "vitaquakeii_gl_xflip";
-			environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+         option_display.key = "vitaquakeii_gl_xflip";
+         environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 
-			option_display.key = "vitaquakeii_gl_hud_scale";
-			environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
-		}
+         option_display.key = "vitaquakeii_gl_hud_scale";
+         environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+      }
 #endif
-		var.key = "vitaquakeii_resolution";
-		var.value = NULL;
+      var.key = "vitaquakeii_resolution";
+      var.value = NULL;
 
-		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && !initial_resolution_set)
-		{
-			char *pch;
-			char str[100];
-			snprintf(str, sizeof(str), "%s", var.value);
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && !initial_resolution_set)
+      {
+         char *pch;
+         char str[100];
+         snprintf(str, sizeof(str), "%s", var.value);
 
-			pch = strtok(str, "x");
-			if (pch)
-				scr_width = strtoul(pch, NULL, 0);
-			pch = strtok(NULL, "x");
-			if (pch)
-				scr_height = strtoul(pch, NULL, 0);
+         pch = strtok(str, "x");
+         if (pch)
+            scr_width = strtoul(pch, NULL, 0);
+         pch = strtok(NULL, "x");
+         if (pch)
+            scr_height = strtoul(pch, NULL, 0);
 
-			/* Software renderer caps out at 1920x1200,
-			 * and cannot handle aspect ratios below 4/3 */
-			if (!enable_opengl)
-			{
-				bool invalid_resolution = false;
+         /* Software renderer caps out at 1920x1200,
+          * and cannot handle aspect ratios below 4/3 */
+         if (!enable_opengl)
+         {
+            bool invalid_resolution = false;
 
-				if ((scr_width == 1280) &&
-					 (scr_height == 1024))
-				{
-					/* Fall back to nearest 4:3 resolution */
-					scr_width  = 1024;
-					scr_height = 768;
-					invalid_resolution = true;
-				}
-				else if ((scr_width > 1920) ||
-							(scr_height > 1200))
-				{
-					/* Fall back to highest supported resolution */
-					scr_width  = 1920;
-					scr_height = 1200;
-					invalid_resolution = true;
-				}
+            if ((scr_width == 1280) &&
+                  (scr_height == 1024))
+            {
+               /* Fall back to nearest 4:3 resolution */
+               scr_width  = 1024;
+               scr_height = 768;
+               invalid_resolution = true;
+            }
+            else if ((scr_width > 1920) ||
+                  (scr_height > 1200))
+            {
+               /* Fall back to highest supported resolution */
+               scr_width  = 1920;
+               scr_height = 1200;
+               invalid_resolution = true;
+            }
 
-				if (invalid_resolution && log_cb)
-					log_cb(RETRO_LOG_WARN,
-							"Specified resolution unsupported by software renderer - falling back to %i x %i.\n",
-							scr_width, scr_height);
-			}
+            if (invalid_resolution && log_cb)
+               log_cb(RETRO_LOG_WARN,
+                     "Specified resolution unsupported by software renderer - falling back to %i x %i.\n",
+                     scr_width, scr_height);
+         }
 
-			scr_aspect = (float)scr_width / (float)scr_height;
+         scr_aspect = (float)scr_width / (float)scr_height;
 
-			if (log_cb)
-				log_cb(RETRO_LOG_INFO, "Got size: %i x %i.\n", scr_width, scr_height);
+         if (log_cb)
+            log_cb(RETRO_LOG_INFO, "Got size: %i x %i.\n", scr_width, scr_height);
 
-			initial_resolution_set = true;
-		}
+         initial_resolution_set = true;
+      }
    }
-   
-	var.key = "vitaquakeii_invert_y_axis";
-	var.value = NULL;
 
-	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-	{
-		if (strcmp(var.value, "disabled") == 0)
-			invert_y_axis = 1;
-		else
-			invert_y_axis = -1;
-	}
+   var.key = "vitaquakeii_invert_y_axis";
+   var.value = NULL;
 
-	var.key = "vitaquakeii_analog_deadzone";
-	var.value = NULL;
-	analog_deadzone = (int)(0.15f * ANALOG_RANGE);
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (strcmp(var.value, "disabled") == 0)
+         invert_y_axis = 1;
+      else
+         invert_y_axis = -1;
+   }
 
-	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-		analog_deadzone = (int)(atoi(var.value) * 0.01f * ANALOG_RANGE);
+   var.key = "vitaquakeii_analog_deadzone";
+   var.value = NULL;
+   analog_deadzone = (int)(0.15f * ANALOG_RANGE);
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+      analog_deadzone = (int)(atoi(var.value) * 0.01f * ANALOG_RANGE);
 
 #if defined(HAVE_CDAUDIO)
-	var.key = "vitaquakeii_cdaudio_enabled";
-	var.value = NULL;
-	cdaudio_enabled = true;
+   var.key = "vitaquakeii_cdaudio_enabled";
+   var.value = NULL;
+   cdaudio_enabled = true;
 
-	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-		if (strcmp(var.value, "disabled") == 0)
-			cdaudio_enabled = false;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+      if (strcmp(var.value, "disabled") == 0)
+         cdaudio_enabled = false;
 
-	if (!cdaudio_enabled && CDAudio_Playing())
-		CDAudio_Stop();
+   if (!cdaudio_enabled && CDAudio_Playing())
+      CDAudio_Stop();
 
-	var.key = "vitaquakeii_cdaudio_volume";
-	var.value = NULL;
-	cdaudio_volume = 0.5f;
+   var.key = "vitaquakeii_cdaudio_volume";
+   var.value = NULL;
+   cdaudio_volume = 0.5f;
 
-	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-	{
-		float volume_level = atof(var.value);
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      float volume_level = atof(var.value);
 
-		if (volume_level < 5.0f)
-			volume_level = 5.0f;
-		if (volume_level > 130.0f)
-			volume_level = 130.0f;
+      if (volume_level < 5.0f)
+         volume_level = 5.0f;
+      if (volume_level > 130.0f)
+         volume_level = 130.0f;
 
-		cdaudio_volume = volume_level / 100.0f;
-	}
+      cdaudio_volume = volume_level / 100.0f;
+   }
 #endif
 
-	/* We need Qcommon_Init to be executed to be able to set Cvars */
-	if (!startup)
-	{
+   /* We need Qcommon_Init to be executed to be able to set Cvars */
+   if (!startup)
+   {
 #ifdef HAVE_OPENGL
-		float libretro_hud_scale_prev;
+      float libretro_hud_scale_prev;
 #endif
-		var.key = "vitaquakeii_rumble";
-		var.value = NULL;
+      var.key = "vitaquakeii_rumble";
+      var.value = NULL;
 
-		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-		{
-			if (strcmp(var.value, "disabled") == 0)
-				Cvar_SetValue( "pstv_rumble", 0 );
-			else
-				Cvar_SetValue( "pstv_rumble", 1 );
-		}
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+      {
+         if (strcmp(var.value, "disabled") == 0)
+            Cvar_SetValue( "pstv_rumble", 0 );
+         else
+            Cvar_SetValue( "pstv_rumble", 1 );
+      }
 
-		var.key = "vitaquakeii_cl_run";
-		var.value = NULL;
+      var.key = "vitaquakeii_cl_run";
+      var.value = NULL;
 
-		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-		{
-			if (strcmp(var.value, "disabled") == 0)
-				Cvar_SetValue( "cl_run", 0 );
-			else
-				Cvar_SetValue( "cl_run", 1 );
-		}
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+      {
+         if (strcmp(var.value, "disabled") == 0)
+            Cvar_SetValue( "cl_run", 0 );
+         else
+            Cvar_SetValue( "cl_run", 1 );
+      }
 
-		var.key = "vitaquakeii_aimfix";
-		var.value = NULL;
+      var.key = "vitaquakeii_aimfix";
+      var.value = NULL;
 
-		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-		{
-			if (strcmp(var.value, "disabled") == 0)
-				Cvar_SetValue( "aimfix", 0 );
-			else
-				Cvar_SetValue( "aimfix", 1 );
-		}
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+      {
+         if (strcmp(var.value, "disabled") == 0)
+            Cvar_SetValue( "aimfix", 0 );
+         else
+            Cvar_SetValue( "aimfix", 1 );
+      }
 
-		var.key = "vitaquakeii_mouse_sensitivity";
-		var.value = NULL;
+      var.key = "vitaquakeii_mouse_sensitivity";
+      var.value = NULL;
 
-		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-		{
-			float mouse_sensitivity = atof(var.value);
-			Cvar_SetValue( "sensitivity", mouse_sensitivity );
-		}
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+      {
+         float mouse_sensitivity = atof(var.value);
+         Cvar_SetValue( "sensitivity", mouse_sensitivity );
+      }
 
-		var.key = "vitaquakeii_sw_dithered_filtering";
-		var.value = NULL;
+      var.key = "vitaquakeii_sw_dithered_filtering";
+      var.value = NULL;
 
-		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value && sw_texfilt)
-		{
-			if (strcmp(var.value, "enabled") == 0)
-				Cvar_SetValue( "sw_texfilt", 1 );
-			else
-				Cvar_SetValue( "sw_texfilt", 0);
-		}
-
-#ifdef HAVE_OPENGL
-		var.key = "vitaquakeii_gl_texture_filtering";
-		var.value = NULL;
-
-		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-		{
-			if (strcmp(var.value, "nearest") == 0)
-				Cvar_Set( "gl_texturemode", "GL_NEAREST" );
-			else if (strcmp(var.value, "linear") == 0)
-				Cvar_Set( "gl_texturemode", "GL_LINEAR" );
-			else if (strcmp(var.value, "linear_hq") == 0)
-				Cvar_Set( "gl_texturemode", "GL_LINEAR_MIPMAP_LINEAR" );
-			else
-				Cvar_Set( "gl_texturemode", "GL_NEAREST_MIPMAP_LINEAR" );
-		}
-
-		var.key = "vitaquakeii_gl_xflip";
-		var.value = NULL;
-
-		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-		{
-			if (strcmp(var.value, "disabled") == 0)
-				Cvar_SetValue( "gl_xflip", 0 );
-			else
-				Cvar_SetValue( "gl_xflip", 1 );
-		}
-
-		var.key = "vitaquakeii_gl_hud_scale";
-		var.value = NULL;
-		libretro_hud_scale_prev = libretro_hud_scale;
-		libretro_hud_scale = 0.5f;
-
-		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-		{
-			libretro_hud_scale = atof(var.value);
-
-			if (libretro_hud_scale > 1.0f)
-				libretro_hud_scale = 1.0f;
-			if (libretro_hud_scale < 0.0f)
-				libretro_hud_scale = 0.0f;
-		}
-
-		/* TODO/FIXME: The menu does not at present
-		 * support dynamic scaling (multiple values
-		 * are set upon menu initialisation instead
-		 * of while drawing the elements). This is
-		 * tedious to fix, so in the meantime we
-		 * will simply close the menu if it is currently
-		 * open and the scale has changed */
-		if ((libretro_hud_scale != libretro_hud_scale_prev) &&
-			 (m_menudepth > 0))
-			M_ForceMenuOff();
-#endif
-
-		var.key = "vitaquakeii_xhair";
-		var.value = NULL;
-
-		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-		{
-			if (strcmp(var.value, "disabled") == 0)
-				Cvar_SetValue( "crosshair", 0 );
-			else if (strcmp(var.value, "dot") == 0)
-				Cvar_SetValue( "crosshair", 2 );
-			else if (strcmp(var.value, "angle") == 0)
-				Cvar_SetValue( "crosshair", 3 );
-			else
-				Cvar_SetValue( "crosshair", 1 );
-		}
-
-		var.key = "vitaquakeii_fps";
-		var.value = NULL;
-
-		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-		{
-			if (strcmp(var.value, "disabled") == 0)
-				Cvar_SetValue( "cl_drawfps", 0 );
-			else
-				Cvar_SetValue( "cl_drawfps", 1 );
-		}
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value && sw_texfilt)
+      {
+         if (strcmp(var.value, "enabled") == 0)
+            Cvar_SetValue( "sw_texfilt", 1 );
+         else
+            Cvar_SetValue( "sw_texfilt", 0);
+      }
 
 #ifdef HAVE_OPENGL
-		var.key = "vitaquakeii_gl_shadows";
-		var.value = NULL;
+      var.key = "vitaquakeii_gl_texture_filtering";
+      var.value = NULL;
 
-		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value && !is_soft_render)
-		{
-			if (strcmp(var.value, "disabled") == 0)
-				Cvar_SetValue( "gl_shadows", 0 );
-			else
-				Cvar_SetValue( "gl_shadows", 1 );
-		}
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+      {
+         if (strcmp(var.value, "nearest") == 0)
+            Cvar_Set( "gl_texturemode", "GL_NEAREST" );
+         else if (strcmp(var.value, "linear") == 0)
+            Cvar_Set( "gl_texturemode", "GL_LINEAR" );
+         else if (strcmp(var.value, "linear_hq") == 0)
+            Cvar_Set( "gl_texturemode", "GL_LINEAR_MIPMAP_LINEAR" );
+         else
+            Cvar_Set( "gl_texturemode", "GL_NEAREST_MIPMAP_LINEAR" );
+      }
+
+      var.key = "vitaquakeii_gl_xflip";
+      var.value = NULL;
+
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+      {
+         if (strcmp(var.value, "disabled") == 0)
+            Cvar_SetValue( "gl_xflip", 0 );
+         else
+            Cvar_SetValue( "gl_xflip", 1 );
+      }
+
+      var.key = "vitaquakeii_gl_hud_scale";
+      var.value = NULL;
+      libretro_hud_scale_prev = libretro_hud_scale;
+      libretro_hud_scale = 0.5f;
+
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+      {
+         libretro_hud_scale = atof(var.value);
+
+         if (libretro_hud_scale > 1.0f)
+            libretro_hud_scale = 1.0f;
+         if (libretro_hud_scale < 0.0f)
+            libretro_hud_scale = 0.0f;
+      }
+
+      /* TODO/FIXME: The menu does not at present
+       * support dynamic scaling (multiple values
+       * are set upon menu initialisation instead
+       * of while drawing the elements). This is
+       * tedious to fix, so in the meantime we
+       * will simply close the menu if it is currently
+       * open and the scale has changed */
+      if ((libretro_hud_scale != libretro_hud_scale_prev) &&
+            (m_menudepth > 0))
+         M_ForceMenuOff();
 #endif
 
-		var.key = "vitaquakeii_hand";
-		var.value = NULL;
+      var.key = "vitaquakeii_xhair";
+      var.value = NULL;
 
-		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-		{
-			if (strcmp(var.value, "right") == 0)
-				Cvar_SetValue( "hand", 0 );
-			else if (strcmp(var.value, "left") == 0)
-				Cvar_SetValue( "hand", 1 );
-			else if (strcmp(var.value, "center") == 0)
-				Cvar_SetValue( "hand", 2 );
-			else
-				Cvar_SetValue( "hand", 3 );
-		}
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+      {
+         if (strcmp(var.value, "disabled") == 0)
+            Cvar_SetValue( "crosshair", 0 );
+         else if (strcmp(var.value, "dot") == 0)
+            Cvar_SetValue( "crosshair", 2 );
+         else if (strcmp(var.value, "angle") == 0)
+            Cvar_SetValue( "crosshair", 3 );
+         else
+            Cvar_SetValue( "crosshair", 1 );
+      }
 
-		var.key = "vitaquakeii_cin_force43";
-		var.value = NULL;
+      var.key = "vitaquakeii_fps";
+      var.value = NULL;
 
-		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-		{
-			if (strcmp(var.value, "disabled") == 0)
-				Cvar_SetValue( "cin_force43", 0 );
-			else
-				Cvar_SetValue( "cin_force43", 1 );
-		}
-	}
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+      {
+         if (strcmp(var.value, "disabled") == 0)
+            Cvar_SetValue( "cl_drawfps", 0 );
+         else
+            Cvar_SetValue( "cl_drawfps", 1 );
+      }
+
+#ifdef HAVE_OPENGL
+      var.key = "vitaquakeii_gl_shadows";
+      var.value = NULL;
+
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value && !is_soft_render)
+      {
+         if (strcmp(var.value, "disabled") == 0)
+            Cvar_SetValue( "gl_shadows", 0 );
+         else
+            Cvar_SetValue( "gl_shadows", 1 );
+      }
+#endif
+
+      var.key = "vitaquakeii_hand";
+      var.value = NULL;
+
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+      {
+         if (strcmp(var.value, "right") == 0)
+            Cvar_SetValue( "hand", 0 );
+         else if (strcmp(var.value, "left") == 0)
+            Cvar_SetValue( "hand", 1 );
+         else if (strcmp(var.value, "center") == 0)
+            Cvar_SetValue( "hand", 2 );
+         else
+            Cvar_SetValue( "hand", 3 );
+      }
+
+      var.key = "vitaquakeii_cin_force43";
+      var.value = NULL;
+
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+      {
+         if (strcmp(var.value, "disabled") == 0)
+            Cvar_SetValue( "cin_force43", 0 );
+         else
+            Cvar_SetValue( "cin_force43", 1 );
+      }
+   }
 
    update_kb_mapping();
 }
@@ -1937,14 +1943,14 @@ void retro_init(void)
 
 void retro_deinit(void)
 {
-	if (!shutdown_core)
-		CL_Quit_f();
+   if (!shutdown_core)
+      CL_Quit_f();
 
 #ifdef HAVE_OPENGL
-	GLimp_DeinitGL();
+   GLimp_DeinitGL();
 #endif
 
-	CDAudio_Shutdown();
+   CDAudio_Shutdown();
 
    libretro_supports_bitmasks = false;
 
@@ -2010,7 +2016,7 @@ void retro_set_environment(retro_environment_t cb)
    {
       filestream_vfs_init(&vfs_iface_info);
       dirent_vfs_init(&vfs_iface_info);
-	}
+   }
 
    environ_cb(RETRO_ENVIRONMENT_SET_CONTROLLER_INFO, (void*)ports);
 }
@@ -2061,222 +2067,265 @@ void retro_set_video_refresh(retro_video_refresh_t cb)
    video_cb = cb;
 }
 
+static enum retro_pixel_format fmt;
+
 bool retro_load_game(const struct retro_game_info *info)
 {
-	int i;
-	char path_lower[1024];
-	char parent_dir[1024];
-	bool use_external_savedir = false;
-	const char *base_save_dir = NULL;
-	enum retro_pixel_format fmt = RETRO_PIXEL_FORMAT_XRGB8888;
+   int i;
+   char path_lower[1024];
+   char parent_dir[1024];
+   bool use_external_savedir = false;
+   const char *base_save_dir = NULL;
+
+   fmt = RETRO_PIXEL_FORMAT_XRGB8888;
 
 #if defined(ROGUE)
-	const char *core_game_dir = "rogue";
-	const char *core_game_error_msg = "Error: Quake II - Ground Zero (rogue) game files required";
+   const char *core_game_dir = "rogue";
+   const char *core_game_error_msg = "Error: Quake II - Ground Zero (rogue) game files required";
 #elif defined(XATRIX)
-	const char *core_game_dir = "xatrix";
-	const char *core_game_error_msg = "Error: Quake II - The Reckoning (xatrix) game files required";
+   const char *core_game_dir = "xatrix";
+   const char *core_game_error_msg = "Error: Quake II - The Reckoning (xatrix) game files required";
 #elif defined(ZAERO)
-	const char *core_game_dir = "zaero";
-	const char *core_game_error_msg = "Error: Quake II - Zaero (zaero) game files required";
+   const char *core_game_dir = "zaero";
+   const char *core_game_error_msg = "Error: Quake II - Zaero (zaero) game files required";
 #else
-	const char *core_game_dir = "baseq2";
-	const char *core_game_error_msg = "Error: Quake II (baseq2) game files required";
+   const char *core_game_dir = "baseq2";
+   const char *core_game_error_msg = "Error: Quake II (baseq2) game files required";
 #endif
 
-	path_lower[0] = '\0';
-	parent_dir[0] = '\0';
+   path_lower[0] = '\0';
+   parent_dir[0] = '\0';
 
-	if (!info || !info->path)
-		return false;
+   if (!info || !info->path)
+      return false;
 
-	environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, input_desc);
+   environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, input_desc);
 
-	if (environ_cb(RETRO_ENVIRONMENT_GET_RUMBLE_INTERFACE, &rumble))
-		log_cb(RETRO_LOG_INFO, "Rumble environment supported.\n");
-	else
-		log_cb(RETRO_LOG_INFO, "Rumble environment not supported.\n");
+   if (environ_cb(RETRO_ENVIRONMENT_GET_RUMBLE_INTERFACE, &rumble))
+      log_cb(RETRO_LOG_INFO, "Rumble environment supported.\n");
+   else
+      log_cb(RETRO_LOG_INFO, "Rumble environment not supported.\n");
 
-	update_variables(true);
+   update_variables(true);
 
-	if (enable_opengl && !environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
-	{
-		if (log_cb)
-			log_cb(RETRO_LOG_INFO, "XRGB8888 is not supported.\n");
-		return false;
-	}
+   if (enable_opengl && !environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
+   {
+      if (log_cb)
+         log_cb(RETRO_LOG_INFO, "XRGB8888 is not supported.\n");
+      return false;
+   }
 
-	if (!enable_opengl
+   if (!enable_opengl
 #ifdef HAVE_OPENGL
-	    || !initialize_opengl()
+         || !initialize_opengl()
 #endif
-	    )
-	{
-		if (log_cb)
-			log_cb(RETRO_LOG_INFO, "vitaQuakeII: using software renderer.\n");
-		
-		fmt = RETRO_PIXEL_FORMAT_RGB565;
-		if (!environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
-		{
-			if (log_cb)
-				log_cb(RETRO_LOG_INFO, "RGB565 is not supported.\n");
-			return false;
-		}
-		is_soft_render = true;
-	}
-	else
-	{
-		if (log_cb)
-			log_cb(RETRO_LOG_INFO, "vitaQuakeII: using OpenGL renderer.\n");
-	}
-	
-	sprintf(path_lower, "%s", info->path);
-	
-	for (i=0; path_lower[i]; ++i)
-		path_lower[i] = tolower(path_lower[i]);
-	
-	extract_directory(g_rom_dir, info->path, sizeof(g_rom_dir));
+      )
+   {
+      if (log_cb)
+         log_cb(RETRO_LOG_INFO, "vitaQuakeII: using software renderer.\n");
 
-	/* Get CD audio directory */
-	fill_pathname_join(g_music_dir, g_rom_dir, "music", sizeof(g_music_dir));
+      fmt = RETRO_PIXEL_FORMAT_RGB565;
+      if (!environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
+      {
+         if (log_cb)
+            log_cb(RETRO_LOG_INFO, "RGB565 is not supported.\n");
+         return false;
+      }
+      else
+      {
+         if (log_cb)
+            log_cb(RETRO_LOG_INFO, "RGB565 is supported.\n");
+      }
+      is_soft_render = true;
+   }
+   else
+   {
+      if (log_cb)
+         log_cb(RETRO_LOG_INFO, "vitaQuakeII: using OpenGL renderer.\n");
+   }
 
-	if (environ_cb(RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY, &base_save_dir) && base_save_dir)
-	{
-		if (!string_is_empty(base_save_dir))
-		{
-			/* Get game 'name' (i.e. subdirectory) */
-			const char *game_name = path_basename(g_rom_dir);
+   sprintf(path_lower, "%s", info->path);
 
-			/* > Build final save path */
-			fill_pathname_join(g_save_dir, base_save_dir, game_name, sizeof(g_save_dir));
-			use_external_savedir = true;
+   for (i=0; path_lower[i]; ++i)
+      path_lower[i] = tolower(path_lower[i]);
 
-			/* > Create save directory, if required */
-			if (!path_is_directory(g_save_dir))
-				use_external_savedir = path_mkdir(g_save_dir);
-		}
-	}
+   extract_directory(g_rom_dir, info->path, sizeof(g_rom_dir));
 
-	/* > Final check: is the save directory the same as the 'rom' directory?
-	 *   (i.e. ensure logical behaviour if user has set a bizarre save path...) */
-	use_external_savedir = use_external_savedir && (strcmp(g_save_dir, g_rom_dir) != 0);
-	
-	/* If we are not using an external save directory,
-	 * then set g_save_dir to an empty string (rom directory
-	 * will be used by default) */
-	if (!use_external_savedir)
-		g_save_dir[0] = '\0';
-	
-	/* Ensure that we have valid content
-	 * (different cores are required for base
-	 * game + expansions) */
-	if (!strstr(path_lower, core_game_dir))
-	{
-		unsigned msg_interface_version = 0;
-		environ_cb(RETRO_ENVIRONMENT_GET_MESSAGE_INTERFACE_VERSION,
-				&msg_interface_version);
+   /* Get CD audio directory */
+   fill_pathname_join(g_music_dir, g_rom_dir, "music", sizeof(g_music_dir));
 
-		if (msg_interface_version >= 1)
-		{
-			struct retro_message_ext msg;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY, &base_save_dir) && base_save_dir)
+   {
+      if (!string_is_empty(base_save_dir))
+      {
+         /* Get game 'name' (i.e. subdirectory) */
+         const char *game_name = path_basename(g_rom_dir);
 
-			msg.msg      = core_game_error_msg;
-			msg.duration = 3000;
-			msg.priority = 3;
-			msg.level    = RETRO_LOG_ERROR;
-			msg.target   = RETRO_MESSAGE_TARGET_ALL;
-			msg.type     = RETRO_MESSAGE_TYPE_NOTIFICATION;
-			msg.progress = -1;
+         /* > Build final save path */
+         fill_pathname_join(g_save_dir, base_save_dir, game_name, sizeof(g_save_dir));
+         use_external_savedir = true;
 
-			environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE_EXT, &msg);
-		}
-		else
-		{
-			struct retro_message msg;
+         /* > Create save directory, if required */
+         if (!path_is_directory(g_save_dir))
+            use_external_savedir = path_mkdir(g_save_dir);
+      }
+   }
 
-			msg.msg      = core_game_error_msg;
-			msg.frames   = 180;
+   /* > Final check: is the save directory the same as the 'rom' directory?
+    *   (i.e. ensure logical behaviour if user has set a bizarre save path...) */
+   use_external_savedir = use_external_savedir && (strcmp(g_save_dir, g_rom_dir) != 0);
 
-			environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, &msg);
-		}
+   /* If we are not using an external save directory,
+    * then set g_save_dir to an empty string (rom directory
+    * will be used by default) */
+   if (!use_external_savedir)
+      g_save_dir[0] = '\0';
 
-		return false;
-	}
+   /* Ensure that we have valid content
+    * (different cores are required for base
+    * game + expansions) */
+   if (!strstr(path_lower, core_game_dir))
+   {
+      unsigned msg_interface_version = 0;
+      environ_cb(RETRO_ENVIRONMENT_GET_MESSAGE_INTERFACE_VERSION,
+            &msg_interface_version);
 
-	/* Quake II base directory is the *parent*
-	 * of the game directory */
-	extract_directory(parent_dir, g_rom_dir, sizeof(parent_dir));
-	strlcpy(g_rom_dir, parent_dir, sizeof(g_rom_dir));
+      if (msg_interface_version >= 1)
+      {
+         struct retro_message_ext msg;
 
-	return true;
+         msg.msg      = core_game_error_msg;
+         msg.duration = 3000;
+         msg.priority = 3;
+         msg.level    = RETRO_LOG_ERROR;
+         msg.target   = RETRO_MESSAGE_TARGET_ALL;
+         msg.type     = RETRO_MESSAGE_TYPE_NOTIFICATION;
+         msg.progress = -1;
+
+         environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE_EXT, &msg);
+      }
+      else
+      {
+         struct retro_message msg;
+
+         msg.msg      = core_game_error_msg;
+         msg.frames   = 180;
+
+         environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, &msg);
+      }
+
+      return false;
+   }
+
+   /* Quake II base directory is the *parent*
+    * of the game directory */
+   extract_directory(parent_dir, g_rom_dir, sizeof(parent_dir));
+   strlcpy(g_rom_dir, parent_dir, sizeof(g_rom_dir));
+
+   return true;
+}
+
+static void retro_run_video(void)
+{
+   if (is_soft_render)
+   {
+      if (sw_fb_status != SW_FB_UNSUPPORTED)
+      {
+         struct retro_framebuffer fb = {0};
+         fb.width         = scr_width;
+         fb.height        = scr_height;
+         fb.access_flags  = RETRO_MEMORY_ACCESS_WRITE;
+
+         if (environ_cb(RETRO_ENVIRONMENT_GET_CURRENT_SOFTWARE_FRAMEBUFFER, &fb)
+               && fmt == RETRO_PIXEL_FORMAT_RGB565)
+         {
+            if (sw_fb_status == SW_FB_UNKNOWN)
+            {
+               sw_fb_status = SW_FB_SUPPORTED;
+               LOG_FILE(
+                     "vitaQuakeII: software framebuffer acquired from frontend.\n");
+            }
+
+            memcpy(fb.data, tex_buffer, (size_t)scr_height * fb.pitch);
+            video_cb(fb.data, scr_width, scr_height, fb.pitch);
+            return;
+         }
+
+         /* First probe failed - stop asking */
+         if (sw_fb_status == SW_FB_UNKNOWN)
+            sw_fb_status = SW_FB_UNSUPPORTED;
+      }
+
+      video_cb(tex_buffer, scr_width, scr_height, scr_width << 1);
+   }
+   else
+   {
+#ifdef HAVE_OPENGL
+      if (!libretro_shared_context)
+         glsm_ctl(GLSM_CTL_STATE_UNBIND, NULL);
+      video_cb(RETRO_HW_FRAME_BUFFER_VALID, scr_width, scr_height, 0);
+#endif
+   }
 }
 
 void retro_run(void)
 {
-	bool updated = false;
+   bool updated = false;
 #ifdef HAVE_OPENGL
-	if (!is_soft_render) {
+   if (!is_soft_render)
+   {
       if (!libretro_shared_context)
          glsm_ctl(GLSM_CTL_STATE_BIND, NULL);
-		qglBindFramebuffer(RARCH_GL_FRAMEBUFFER, hw_render.get_current_framebuffer());
-		qglEnable(GL_TEXTURE_2D);
-	}
+      qglBindFramebuffer(RARCH_GL_FRAMEBUFFER, hw_render.get_current_framebuffer());
+      qglEnable(GL_TEXTURE_2D);
+   }
 #endif
-	if (first_boot)
-	{
-		const char *argv[32];
-		const char *empty_string = "";
-	
-		argv[0] = empty_string;
-		int argc = 1;
+   if (first_boot)
+   {
+      const char *argv[32];
+      const char *empty_string = "";
+
+      argv[0] = empty_string;
+      int argc = 1;
 #if defined(ROGUE) || defined(XATRIX) || defined(ZAERO)
-		argc = 4;
-		argv[1] = "+set";
-		argv[2] = "game";
+      argc = 4;
+      argv[1] = "+set";
+      argv[2] = "game";
 #if defined(ROGUE)
-		argv[3] = "rogue";
+      argv[3] = "rogue";
 #elif defined(XATRIX)
-		argv[3] = "xatrix";
+      argv[3] = "xatrix";
 #elif defined(ZAERO)
-		argv[3] = "zaero";
+      argv[3] = "zaero";
 #endif
 #endif
-		Qcommon_Init(argc, (char**)argv);
-		if (is_soft_render) Cvar_Set( "vid_ref", "soft" );
-		update_variables(false);
-		set_input_binds();
-		first_boot = false;
-	}
-	
-	if (rumble_tick != 0)
-		if (cpu_features_get_time_usec() - rumble_tick > 500000)
+      Qcommon_Init(argc, (char**)argv);
+      if (is_soft_render)
+         Cvar_Set( "vid_ref", "soft" );
+      update_variables(false);
+      set_input_binds();
+      first_boot = false;
+   }
+
+   if (rumble_tick != 0)
+      if (cpu_features_get_time_usec() - rumble_tick > 500000)
          IN_StopRumble(); /* 0.5 sec */
-	
-	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
-		update_variables(false);
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
+      update_variables(false);
 
    /* TODO/FIXME - argument should be changed into float for better accuracy of fixed timestep */
-	Qcommon_Frame (framerate_ms);
+   Qcommon_Frame (framerate_ms);
 
-	if (shutdown_core)
-		return;
-
-	if (is_soft_render)
-		video_cb(tex_buffer, scr_width, scr_height, scr_width << 1);
-	else
-	{
-#ifdef HAVE_OPENGL
-      if (!libretro_shared_context)
-         glsm_ctl(GLSM_CTL_STATE_UNBIND, NULL);
-		video_cb(RETRO_HW_FRAME_BUFFER_VALID, scr_width, scr_height, 0);
-#endif
-	}
-	
-	audio_callback();
+   if (shutdown_core)
+      return;
+   retro_run_video();
+   audio_callback();
 }
 
 void retro_unload_game(void)
 {
+   sw_fb_status = SW_FB_UNKNOWN;
 }
 
 unsigned retro_get_region(void)
@@ -2381,13 +2430,13 @@ static void audio_callback(void)
    do
    {
       unsigned audio_frames_to_write =
-            (audio_frames_remaining > audio_batch_frames_max) ?
-                  audio_batch_frames_max : audio_frames_remaining;
+         (audio_frames_remaining > audio_batch_frames_max) ?
+         audio_batch_frames_max : audio_frames_remaining;
       unsigned audio_frames_written  =
-            audio_batch_cb(audio_out_ptr, audio_frames_to_write);
+         audio_batch_cb(audio_out_ptr, audio_frames_to_write);
 
       if ((audio_frames_written < audio_frames_to_write) &&
-          (audio_frames_written > 0))
+            (audio_frames_written > 0))
          audio_batch_frames_max = audio_frames_written;
 
       audio_frames_remaining -= audio_frames_to_write;
@@ -2424,28 +2473,28 @@ qboolean SNDDMA_Init(void)
 
 int SNDDMA_GetDMAPos(void)
 {
-	if(!sound_initialized)
-		return 0;
-	return dma.samplepos = audio_buffer_ptr;
+   if(!sound_initialized)
+      return 0;
+   return dma.samplepos = audio_buffer_ptr;
 }
 
 void SNDDMA_Shutdown(void)
 {
-	if(!sound_initialized)
-		return;
+   if(!sound_initialized)
+      return;
 
-	stop_audio = true;
+   stop_audio = true;
 
-	sound_initialized = 0;
+   sound_initialized = 0;
 }
 
 /*
-==============
-SNDDMA_Submit
+   ==============
+   SNDDMA_Submit
 
-Send sound to device if buffer isn't really the dma buffer
-===============
-*/
+   Send sound to device if buffer isn't really the dma buffer
+   ===============
+ */
 void SNDDMA_Submit(void)
 {
 }
@@ -2486,12 +2535,12 @@ refexport_t SWR_GetRefAPI (refimport_t rimp);
 
 
 /*
-==========================================================================
+   ==========================================================================
 
-DIRECT LINK GLUE
+   DIRECT LINK GLUE
 
-==========================================================================
-*/
+   ==========================================================================
+ */
 
 #define MAXPRINTMSG 4096
 void VID_Printf (int print_level, char *fmt, ...)
@@ -2532,8 +2581,8 @@ void VID_NewWindow (int width, int height)
 }
 
 /*
-** VID_GetModeInfo
-*/
+ ** VID_GetModeInfo
+ */
 typedef struct vidmode_s
 {
    const char *description;
@@ -2581,7 +2630,7 @@ int VID_GetMode ( int width, int height )
 
    for (i = 0; i < VID_NUM_MODES; i++)
       if ((vid_modes[i].width == width) &&
-          (vid_modes[i].height == height))
+            (vid_modes[i].height == height))
          return i;
 
    return -1;
@@ -2608,19 +2657,19 @@ static void ResCallback( void *unused )
 
 static void ScreenSizeCallback( void *s )
 {
-    menuslider_s *slider = ( menuslider_s * ) s;
+   menuslider_s *slider = ( menuslider_s * ) s;
 
-    Cvar_SetValue( "viewsize", slider->curvalue * 10 );
+   Cvar_SetValue( "viewsize", slider->curvalue * 10 );
 }
 
 static void ShadowsCallback( void *unused )
 {
-	Cvar_SetValue( "gl_shadows", s_shadows_slider.curvalue );
+   Cvar_SetValue( "gl_shadows", s_shadows_slider.curvalue );
 }
 
 static void ResetDefaults( void *unused )
 {
-	VID_MenuInit();
+   VID_MenuInit();
 }
 
 static void ApplyChanges( void *unused )
@@ -2628,8 +2677,8 @@ static void ApplyChanges( void *unused )
 #ifdef HAVE_OPENGL
    if (enable_opengl)
    {
-     Cvar_Set( "vid_ref", "gl" );
-     Cvar_Set( "gl_driver", "opengl32" );
+      Cvar_Set( "vid_ref", "gl" );
+      Cvar_Set( "gl_driver", "opengl32" );
    }
 #endif
    M_ForceMenuOff();
@@ -2681,8 +2730,8 @@ void    VID_Init (void)
 
 void    VID_Shutdown (void)
 {
-    if (re.Shutdown)
-        re.Shutdown ();
+   if (re.Shutdown)
+      re.Shutdown ();
 }
 
 void    VID_CheckChanges (void)
@@ -2736,26 +2785,26 @@ void    VID_MenuInit (void)
 
 void    VID_MenuDraw (void)
 {
-    int w, h;
-	float scale = SCR_GetMenuScale();
-	
-    s_current_menu = &s_opengl_menu;
+   int w, h;
+   float scale = SCR_GetMenuScale();
 
-    /*
+   s_current_menu = &s_opengl_menu;
+
+   /*
     ** draw the banner
     */
-    re.DrawGetPicSize( &w, &h, "m_banner_video" );
-    re.DrawPic( viddef.width / 2 - (w * scale) / 2, viddef.height /2 - 110 * scale, "m_banner_video", scale );
+   re.DrawGetPicSize( &w, &h, "m_banner_video" );
+   re.DrawPic( viddef.width / 2 - (w * scale) / 2, viddef.height /2 - 110 * scale, "m_banner_video", scale );
 
-    /*
+   /*
     ** move cursor to a reasonable starting position
     */
-    Menu_AdjustCursor( s_current_menu, 1 );
+   Menu_AdjustCursor( s_current_menu, 1 );
 
-    /*
+   /*
     ** draw the menu
     */
-    Menu_Draw( s_current_menu );
+   Menu_Draw( s_current_menu );
 }
 
 const char *VID_MenuKey( int k)
@@ -2799,33 +2848,33 @@ const char *VID_MenuKey( int k)
 #ifdef HAVE_OPENGL
 int GLimp_SetMode( int *pwidth, int *pheight, int mode, qboolean fullscreen )
 {
-	/* Resolution (scr_width, scr_height) is set directly
-	 * by the libretro frontend, so checking the validity
-	 * of the 'mode' argument here is irrelevant */
+   /* Resolution (scr_width, scr_height) is set directly
+    * by the libretro frontend, so checking the validity
+    * of the 'mode' argument here is irrelevant */
 #if 0
-	int width, height;
+   int width, height;
 
-	ri.Con_Printf ( PRINT_ALL, " %d %d\n", scr_width, scr_height );
-	ri.Con_Printf ( PRINT_ALL, "Initializing OpenGL display\n");
-	ri.Con_Printf ( PRINT_ALL, "...setting mode %d:", mode );
+   ri.Con_Printf ( PRINT_ALL, " %d %d\n", scr_width, scr_height );
+   ri.Con_Printf ( PRINT_ALL, "Initializing OpenGL display\n");
+   ri.Con_Printf ( PRINT_ALL, "...setting mode %d:", mode );
 
-	if ( !ri.Vid_GetModeInfo( &width, &height, mode ) )
-	{
-		ri.Con_Printf( PRINT_ALL, " invalid mode\n" );
-		return rserr_invalid_mode;
-	}
+   if ( !ri.Vid_GetModeInfo( &width, &height, mode ) )
+   {
+      ri.Con_Printf( PRINT_ALL, " invalid mode\n" );
+      return rserr_invalid_mode;
+   }
 #endif
 
-	/* destroy the existing window */
-	GLimp_Shutdown ();
+   /* destroy the existing window */
+   GLimp_Shutdown ();
 
-	*pwidth  = scr_width;
-	*pheight = scr_height;
-	ri.Vid_NewWindow (scr_width, scr_height);
+   *pwidth  = scr_width;
+   *pheight = scr_height;
+   ri.Vid_NewWindow (scr_width, scr_height);
 
-	if (!gl_set) GLimp_InitGL();
+   if (!gl_set) GLimp_InitGL();
 
-	return rserr_ok;
+   return rserr_ok;
 }
 #endif
 
@@ -2842,15 +2891,15 @@ extern cvar_t *gl_xflip;
 
 void IN_Init (void)
 {
-	in_joystick	= Cvar_Get ("in_joystick", "1",	CVAR_ARCHIVE);
-	leftanalog_sensitivity = Cvar_Get ("leftanalog_sensitivity", "2.0", CVAR_ARCHIVE);
-	rightanalog_sensitivity = Cvar_Get ("rightanalog_sensitivity", "2.0", CVAR_ARCHIVE);
-	vert_motioncam_sensitivity = Cvar_Get ("vert_motioncam_sensitivity", "2.0", CVAR_ARCHIVE);
-	hor_motioncam_sensitivity = Cvar_Get ("hor_motioncam_sensitivity", "2.0", CVAR_ARCHIVE);
-	use_gyro = Cvar_Get ("use_gyro", "0", CVAR_ARCHIVE);
-	pstv_rumble	= Cvar_Get ("pstv_rumble", "1",	CVAR_ARCHIVE);
-	
-	rumble_tick = cpu_features_get_time_usec();
+   in_joystick	= Cvar_Get ("in_joystick", "1",	CVAR_ARCHIVE);
+   leftanalog_sensitivity = Cvar_Get ("leftanalog_sensitivity", "2.0", CVAR_ARCHIVE);
+   rightanalog_sensitivity = Cvar_Get ("rightanalog_sensitivity", "2.0", CVAR_ARCHIVE);
+   vert_motioncam_sensitivity = Cvar_Get ("vert_motioncam_sensitivity", "2.0", CVAR_ARCHIVE);
+   hor_motioncam_sensitivity = Cvar_Get ("hor_motioncam_sensitivity", "2.0", CVAR_ARCHIVE);
+   use_gyro = Cvar_Get ("use_gyro", "0", CVAR_ARCHIVE);
+   pstv_rumble	= Cvar_Get ("pstv_rumble", "1",	CVAR_ARCHIVE);
+
+   rumble_tick = cpu_features_get_time_usec();
 }
 
 void IN_Shutdown (void)
@@ -2867,23 +2916,23 @@ void IN_Frame (void)
 
 void IN_StartRumble (void)
 {
-	if (!pstv_rumble->value) return;
-	
-	uint16_t strength_strong = 0xffff;
-	if (!rumble.set_rumble_state)
-		return;
+   if (!pstv_rumble->value) return;
 
-	rumble.set_rumble_state(0, RETRO_RUMBLE_STRONG, strength_strong);
-	rumble_tick = cpu_features_get_time_usec();
+   uint16_t strength_strong = 0xffff;
+   if (!rumble.set_rumble_state)
+      return;
+
+   rumble.set_rumble_state(0, RETRO_RUMBLE_STRONG, strength_strong);
+   rumble_tick = cpu_features_get_time_usec();
 }
 
 void IN_StopRumble (void)
 {
-	if (!rumble.set_rumble_state)
-		return;
+   if (!rumble.set_rumble_state)
+      return;
 
-	rumble.set_rumble_state(0, RETRO_RUMBLE_STRONG, 0);
-	rumble_tick = 0;
+   rumble.set_rumble_state(0, RETRO_RUMBLE_STRONG, 0);
+   rumble_tick = 0;
 }
 
 void IN_Move (usercmd_t *cmd)
@@ -2902,10 +2951,10 @@ void IN_Move (usercmd_t *cmd)
 
       mx_delta = 0.03f * ((float)sensitivity->value *
             ((float)mx + (float)mx_prev) * 0.5f) /
-                  ((float)framerate / 60.0f);
+         ((float)framerate / 60.0f);
       my_delta = 0.03f * ((float)sensitivity->value *
             ((float)my + (float)my_prev) * 0.5f) /
-                  ((float)framerate / 60.0f);
+         ((float)framerate / 60.0f);
 
       if (enable_opengl && gl_xflip->value)
          cl.viewangles[YAW] += mx_delta;
@@ -2943,7 +2992,7 @@ void IN_Move (usercmd_t *cmd)
             lsx = lsx + analog_deadzone;
 
          lx_delta = (speed * (float)cl_sidespeed->value * (float)lsx) /
-               (float)(ANALOG_RANGE - analog_deadzone);
+            (float)(ANALOG_RANGE - analog_deadzone);
 
          if (enable_opengl && gl_xflip->value)
             cmd->sidemove -= lx_delta;
@@ -2959,14 +3008,14 @@ void IN_Move (usercmd_t *cmd)
             lsy = lsy + analog_deadzone;
 
          cmd->forwardmove -= (speed * (float)cl_forwardspeed->value * (float)lsy) /
-               (float)(ANALOG_RANGE - analog_deadzone);
+            (float)(ANALOG_RANGE - analog_deadzone);
       }
 
       /* Right stick Look */
       rsx = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
-               RETRO_DEVICE_ID_ANALOG_X);
+            RETRO_DEVICE_ID_ANALOG_X);
       rsy = invert_y_axis * input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
-               RETRO_DEVICE_ID_ANALOG_Y);
+            RETRO_DEVICE_ID_ANALOG_Y);
 
       if (rsx > analog_deadzone || rsx < -analog_deadzone)
       {
@@ -2980,7 +3029,7 @@ void IN_Move (usercmd_t *cmd)
          /* For now we are sharing the sensitivity with the mouse setting */
          rx_delta = ((float)sensitivity->value * (float)rsx /
                (float)(ANALOG_RANGE - analog_deadzone)) /
-                     ((float)framerate / 60.0f);
+            ((float)framerate / 60.0f);
 
          if (enable_opengl && gl_xflip->value)
             cl.viewangles[YAW] += rx_delta;
@@ -2993,7 +3042,7 @@ void IN_Move (usercmd_t *cmd)
          /* Have to correct for widescreen aspect ratios,
           * otherwise vertical motion is too fast */
          float aspect_correction = (float)(4 * viddef.height) /
-               (float)(3 * viddef.width);
+            (float)(3 * viddef.width);
 
          if (rsy > analog_deadzone)
             rsy = rsy - analog_deadzone;
@@ -3002,7 +3051,7 @@ void IN_Move (usercmd_t *cmd)
 
          cl.viewangles[PITCH] -= (aspect_correction * (float)sensitivity->value * (float)rsy /
                (float)(ANALOG_RANGE - analog_deadzone)) /
-                     ((float)framerate / 60.0f);
+            ((float)framerate / 60.0f);
       }
    }
 
