@@ -52,12 +52,10 @@ float SCR_GetMenuScale(void)
 static void	 Action_DoEnter( menuaction_s *a );
 static void	 Action_Draw( menuaction_s *a );
 static void  Menu_DrawStatusBar( const char *string );
-static void	 Menulist_DoEnter( menulist_s *l );
 static void	 MenuList_Draw( menulist_s *l );
 static void	 Separator_Draw( menuseparator_s *s );
 static void	 Slider_DoSlide( menuslider_s *s, int dir );
 static void	 Slider_Draw( menuslider_s *s );
-static void	 SpinControl_DoEnter( menulist_s *s );
 static void	 SpinControl_Draw( menulist_s *s );
 static void	 SpinControl_DoSlide( menulist_s *s, int dir );
 
@@ -624,18 +622,6 @@ int Menu_TallySlots( menuframework_s *menu )
 	return total;
 }
 
-void Menulist_DoEnter( menulist_s *l )
-{
-	int start;
-
-	start = l->generic.y / 10 + 1;
-
-	l->curvalue = l->generic.parent->cursor - start;
-
-	if ( l->generic.callback )
-		l->generic.callback( l );
-}
-
 void
 MenuList_Draw(menulist_s *l)
 {
@@ -705,16 +691,6 @@ void Slider_Draw( menuslider_s *s )
 		Draw_Char( scale * RCOLUMN_OFFSET + s->generic.x + i*8 + s->generic.parent->x + 8, scale*(s->generic.y + s->generic.parent->y), 129, scale);
 	Draw_Char( scale * RCOLUMN_OFFSET + s->generic.x + i*8 + s->generic.parent->x + 8, scale*(s->generic.y + s->generic.parent->y), 130, scale);
 	Draw_Char( ( int ) ( 8 + scale * RCOLUMN_OFFSET + s->generic.parent->x + s->generic.x + (SLIDER_RANGE*scale-1)*8 * s->range ), (s->generic.y + s->generic.parent->y)*scale, 131, scale);
-}
-
-void SpinControl_DoEnter( menulist_s *s )
-{
-	s->curvalue++;
-	if ( s->itemnames[s->curvalue] == 0 )
-		s->curvalue = 0;
-
-	if ( s->generic.callback )
-		s->generic.callback( s );
 }
 
 void SpinControl_DoSlide( menulist_s *s, int dir )

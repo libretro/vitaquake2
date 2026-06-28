@@ -160,16 +160,10 @@ void FS_FCloseFile (RFILE *f)
 int	Developer_searchpath (int who)
 {
 	
-	int		ch;
 	// PMM - warning removal
 //	char	*start;
 	searchpath_t	*search;
 	
-	if (who == 1) // xatrix
-		ch = 'x';
-	else if (who == 2)
-		ch = 'r';
-
 	for (search = fs_searchpaths ; search ; search = search->next)
 	{
 		if (strstr (search->filename, "xatrix"))
@@ -397,7 +391,6 @@ pack_t *FS_LoadPackFile (char *packfile)
 	pack_t			*pack;
 	RFILE			*packhandle;
 	dpackfile_t		*info;
-	unsigned		checksum;
 	
 	packhandle = rfopen(packfile, "rb");
 	if (!packhandle){
@@ -449,7 +442,6 @@ pack_t *FS_LoadPackFile (char *packfile)
 	}
 
 	/* crc the directory to check for modifications */
-	checksum = Com_BlockChecksum ((void *)info, header.dirlen);
 
 	newfiles = Z_Malloc (numpackfiles * sizeof(packfile_t));
 

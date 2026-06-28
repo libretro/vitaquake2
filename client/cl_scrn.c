@@ -1018,7 +1018,7 @@ void SCR_ExecuteLayoutString (char *s)
 			value = cl.frame.playerstate.stats[atoi(token)];
 			if (value >= MAX_IMAGES)
 				Com_Error (ERR_DROP, "Pic >= MAX_IMAGES");
-			if (cl.configstrings[CS_IMAGES+value])
+			if (cl.configstrings[CS_IMAGES+value][0])
 			{
 				SCR_AddDirtyPoint (x, y);
 				SCR_AddDirtyPoint (x+23*scale, y+23*scale);
@@ -1280,7 +1280,6 @@ char	temp[32]; // temporary char where we store our fps string
 
 void SCR_DrawFps(void)
 {
-	int calc;
 	float scale = SCR_GetMenuScale();
 	
 	if ((cl.time + 1000) < fpscounter)

@@ -1094,11 +1094,6 @@ static void RumbleFunc( void *unused )
 	Cvar_SetValue( "pstv_rumble", s_options_rumble_box.curvalue );
 }
 
-static void JoystickFunc( void *unused )
-{
-	Cvar_SetValue( "in_joystick", s_options_joystick_box.curvalue );
-}
-
 static void CustomizeControlsFunc( void *unused )
 {
 	M_Menu_Keys_f();
@@ -1112,11 +1107,6 @@ static void UseGyroFunc( void *unused )
 static void AlwaysRunFunc( void *unused )
 {
 	Cvar_SetValue( "cl_run", s_options_alwaysrun_box.curvalue );
-}
-
-static void FreeLookFunc( void *unused )
-{
-	Cvar_SetValue( "freelook", s_options_freelook_box.curvalue );
 }
 
 /*static void MouseSpeedFunc( void *unused )
@@ -1169,11 +1159,6 @@ static void SpecularFunc( void *unused )
 static void framecapFunc( void *unused )
 {
 	Cvar_SetValue( "cl_maxfps", s_options_framecap_box.curvalue ? 30 : 90 );
-}
-
-static void NoAltTabFunc( void *unused )
-{
-	Cvar_SetValue( "win_noalttab", s_options_noalttab_box.curvalue );
 }
 
 static float ClampCvar( float min, float max, float value )
@@ -1275,11 +1260,6 @@ static void InvertGyroFunc( void *unused )
 	{
 		Cvar_SetValue( "g_pitch", -fabs( g_pitch->value ) );
 	}
-}
-
-static void LookspringFunc( void *unused )
-{
-	Cvar_SetValue( "lookspring", s_options_lookspring_box.curvalue );
 }
 
 static void UpdateVolumeFunc( void *unused )
@@ -2165,14 +2145,6 @@ static void CreditsFunc( void *unused )
 
 void Game_MenuInit( void )
 {
-	static const char *difficulty_names[] =
-	{
-		"easy",
-		"medium",
-		"hard",
-		0
-	};
-
 	s_game_menu.x = viddef.width * 0.50;
 	s_game_menu.nitems = 0;
 
@@ -3969,6 +3941,8 @@ static qboolean PlayerConfig_ScanDirectories( void )
 	}
 	if ( dirnames )
 		FreeFileList( dirnames, ndirs );
+
+	return true;
 }
 
 static int pmicmpfnc( const void *_a, const void *_b )
@@ -3996,7 +3970,6 @@ static int pmicmpfnc( const void *_a, const void *_b )
 qboolean PlayerConfig_MenuInit( void )
 {
 	extern cvar_t *name;
-	extern cvar_t *team;
 	extern cvar_t *skin;
 	char currentdirectory[1024];
 	char currentskin[1024];
@@ -4179,7 +4152,6 @@ void PlayerConfig_MenuDraw( void )
 	if ( s_pmi[s_player_model_box.curvalue].skindisplaynames )
 	{
 		static int yaw;
-		int maxframe = 29;
 		entity_t entity;
 
 		memset( &entity, 0, sizeof( entity ) );

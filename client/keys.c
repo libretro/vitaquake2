@@ -323,7 +323,7 @@ void Key_Console (int key)
 				&& !key_lines[history_line][1]);
 		if (history_line == edit_line)
 			history_line = (edit_line+1)&31;
-		strcpy(key_lines[edit_line], key_lines[history_line]);
+		memmove(key_lines[edit_line], key_lines[history_line], strlen(key_lines[history_line])+1);
 		key_linepos = strlen(key_lines[edit_line]);
 		return;
 	}
@@ -345,7 +345,7 @@ void Key_Console (int key)
 		}
 		else
 		{
-			strcpy(key_lines[edit_line], key_lines[history_line]);
+			memmove(key_lines[edit_line], key_lines[history_line], strlen(key_lines[history_line])+1);
 			key_linepos = strlen(key_lines[edit_line]);
 		}
 		return;

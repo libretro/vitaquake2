@@ -396,7 +396,7 @@ gotnewcl:
 	}
 
 	// parse some info from the info strings
-	strncpy (newcl->userinfo, userinfo, sizeof(newcl->userinfo)-1);
+	Com_sprintf (newcl->userinfo, sizeof(newcl->userinfo), "%s", userinfo);
 	SV_UserinfoChanged (newcl);
 
 	// send the connect packet to the client
