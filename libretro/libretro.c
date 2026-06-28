@@ -939,10 +939,9 @@ int y = 20;
 static void LOG_FILE(const char *format, ...)
 {
    va_list arg;
-   int done;
    va_start(arg, format);
    char msg[512];
-   done = vsnprintf(msg, 500, format, arg);
+   vsnprintf(msg, 500, format, arg);
    va_end(arg);
    if (log_cb)
       log_cb(RETRO_LOG_DEBUG, "LOG2FILE: %s", msg);
@@ -1262,12 +1261,12 @@ static	char	findpattern[MAX_OSPATH];
 static	RDIR	*fdir = NULL;
 
 /* Forward declarations */
-static int glob_match(char *pattern, char *text);
+static int glob_match(const char *pattern, const char *text);
 
 /* Like glob_match, but match PATTERN against any final segment of TEXT.  */
-static int glob_match_after_star(char *pattern, char *text)
+static int glob_match_after_star(const char *pattern, const char *text)
 {
-   register char *p = pattern, *t = text;
+   register const char *p = pattern, *t = text;
    register char c, c1;
 
    while ((c = *p++) == '?' || c == '*')
@@ -1303,9 +1302,9 @@ static int glob_match_after_star(char *pattern, char *text)
    To suppress the special syntactic significance of any of `[]*?!-\',
    and match the character exactly, precede it with a `\'.
  */
-static int glob_match(char *pattern, char *text)
+static int glob_match(const char *pattern, const char *text)
 {
-   register char *p = pattern, *t = text;
+   register const char *p = pattern, *t = text;
    register char c;
 
    while ((c = *p++) != '\0')
@@ -2621,8 +2620,6 @@ static menulist_s       s_mode_list;
 static menulist_s       s_ref_list;
 static menuslider_s     s_screensize_slider;
 static menuaction_s     s_cancel_action;
-static menuaction_s     s_defaults_action;
-static menulist_s       s_shadows_slider;
 
 viddef_t    viddef;             /* global video state */
 
@@ -2749,27 +2746,6 @@ static void NullCallback( void *unused )
 {
 }
 
-static void ResCallback( void *unused )
-{
-}
-
-static void ScreenSizeCallback( void *s )
-{
-   menuslider_s *slider = ( menuslider_s * ) s;
-
-   Cvar_SetValue( "viewsize", slider->curvalue * 10 );
-}
-
-static void ShadowsCallback( void *unused )
-{
-   Cvar_SetValue( "gl_shadows", s_shadows_slider.curvalue );
-}
-
-static void ResetDefaults( void *unused )
-{
-   VID_MenuInit();
-}
-
 static void ApplyChanges( void *unused )
 {
 #ifdef HAVE_OPENGL
@@ -2819,7 +2795,7 @@ void    VID_Init (void)
       Com_Error (ERR_FATAL, "Re has incompatible api_version");
 
    /* call the init function */
-   if (re.Init (NULL, NULL) == -1)
+   if (!re.Init (NULL, NULL))
       Com_Error (ERR_FATAL, "Couldn't start refresh");
 
    vid_ref = Cvar_Get ("vid_ref", "soft", CVAR_ARCHIVE);
