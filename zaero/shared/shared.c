@@ -803,53 +803,13 @@ COM_DefaultExtension(char *path, const char *extension)
  * ============================================================================
  */
 
-qboolean bigendien;
+#ifdef MSB_FIRST
+qboolean bigendien = true;
+#else
+qboolean bigendien = false;
+#endif
 
-/* can't just use function pointers, or dll linkage can 
-   mess up when qcommon is included in multiple places */
-short (*_BigShort)(short l);
-short (*_LittleShort)(short l);
-int (*_BigLong)(int l);
-int (*_LittleLong)(int l);
-float (*_BigFloat)(float l);
-float (*_LittleFloat)(float l);
-
-short
-BigShort(short l)
-{
-	return _BigShort(l); 
-}
-
-short
-LittleShort(short l)
-{return 
-	_LittleShort(l); 
-}
-
-int
-BigLong(int l)
-{
-	return _BigLong(l); 
-}
-
-int
-LittleLong(int l)
-{
-	return _LittleLong(l); 
-}
-
-float
-BigFloat(float l)
-{
-	return _BigFloat(l); 
-}
-
-float
-LittleFloat(float l)
-{
-	return _LittleFloat(l); 
-}
-
+/* ShortSwap/LongSwap/FloatSwap perform an unconditional byte reversal. */
 short
 ShortSwap(short l)
 {
@@ -859,12 +819,6 @@ ShortSwap(short l)
 	b2 = (l >> 8) & 255;
 
 	return (b1 << 8) + b2;
-}
-
-short
-ShortNoSwap(short l)
-{
-	return l;
 }
 
 int
@@ -878,12 +832,6 @@ LongSwap(int l)
 	b4 = (l >> 24) & 255;
 
 	return ((int)b1 << 24) + ((int)b2 << 16) + ((int)b3 << 8) + b4;
-}
-
-int
-LongNoSwap(int l)
-{
-	return l;
 }
 
 float
@@ -903,38 +851,31 @@ FloatSwap(float f)
 	return dat2.f;
 }
 
-float
-FloatNoSwap(float f)
-{
-	return f;
-}
+/*
+ * Endianness is a compile-time decision: MSB_FIRST defined means a
+ * big-endian host, undefined means little-endian. The Big*/Little*
+ * helpers resolve to either a no-op or an unconditional swap, with no
+ * runtime probe and no per-call function-pointer indirection.
+ */
+#ifdef MSB_FIRST
+short BigShort(short l)    { return l; }
+int   BigLong(int l)       { return l; }
+float BigFloat(float l)    { return l; }
+short LittleShort(short l) { return ShortSwap(l); }
+int   LittleLong(int l)    { return LongSwap(l); }
+float LittleFloat(float l) { return FloatSwap(l); }
+#else
+short BigShort(short l)    { return ShortSwap(l); }
+int   BigLong(int l)       { return LongSwap(l); }
+float BigFloat(float l)    { return FloatSwap(l); }
+short LittleShort(short l) { return l; }
+int   LittleLong(int l)    { return l; }
+float LittleFloat(float l) { return l; }
+#endif
 
 void
 Swap_Init(void)
 {
-	byte swaptest[2] = {1, 0};
-
-	/* set the byte swapping variables in a portable manner */
-	if (*(short *)swaptest == 1)
-	{
-		bigendien = false;
-		_BigShort = ShortSwap;
-		_LittleShort = ShortNoSwap;
-		_BigLong = LongSwap;
-		_LittleLong = LongNoSwap;
-		_BigFloat = FloatSwap;
-		_LittleFloat = FloatNoSwap;
-	}
-	else
-	{
-		bigendien = true;
-		_BigShort = ShortNoSwap;
-		_LittleShort = ShortSwap;
-		_BigLong = LongNoSwap;
-		_LittleLong = LongSwap;
-		_BigFloat = FloatNoSwap;
-		_LittleFloat = FloatSwap;
-	}
 }
 
 /*

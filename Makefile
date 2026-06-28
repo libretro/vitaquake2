@@ -94,6 +94,12 @@ else ifneq (,$(findstring osx,$(platform)))
    #GL_LIB := -framework OpenGL
    SHARED := -dynamiclib
 
+   # PowerPC macOS is big-endian
+   ifeq ($(arch),ppc)
+      CFLAGS += -DMSB_FIRST
+      CXXFLAGS += -DMSB_FIRST
+   endif
+
 ifeq ($(UNIVERSAL),1)
 ifeq ($(archs),ppc)
    ARCHFLAGS = -arch ppc -arch ppc64
@@ -200,8 +206,8 @@ else ifeq ($(platform), psl1ght)
    CXX = $(PS3DEV)/ppu/bin/ppu-g++$(EXE_EXT)
    CC_AS = $(PS3DEV)/ppu/bin/ppu-gcc$(EXE_EXT)
    AR = $(PS3DEV)/ppu/bin/ppu-ar$(EXE_EXT)
-   CFLAGS += -D__PS3__ -D__PSL1GHT__ -mcpu=cell
-   CXXFLAGS += -D__PS3__ -D__PSL1GHT__ -mcpu=cell
+   CFLAGS += -D__PS3__ -D__PSL1GHT__ -DMSB_FIRST -mcpu=cell
+   CXXFLAGS += -D__PS3__ -D__PSL1GHT__ -DMSB_FIRST -mcpu=cell
    STATIC_LINKING = 1
    HAVE_OPENGL = 0
 # WiiU
@@ -211,8 +217,8 @@ else ifeq ($(platform), wiiu)
    CC = $(DEVKITPPC)/bin/powerpc-eabi-gcc$(EXE_EXT)
    CXX = $(DEVKITPPC)/bin/powerpc-eabi-g++$(EXE_EXT)
    AR = $(DEVKITPPC)/bin/powerpc-eabi-ar$(EXE_EXT)
-   CFLAGS += -DGEKKO -DHW_RVL -DWIIU -mcpu=750 -meabi -mhard-float
-   CXXFLAGS += -DGEKKO -DHW_RVL -DWIIU -mcpu=750 -meabi -mhard-float
+   CFLAGS += -DGEKKO -DHW_RVL -DWIIU -DMSB_FIRST -mcpu=750 -meabi -mhard-float
+   CXXFLAGS += -DGEKKO -DHW_RVL -DWIIU -DMSB_FIRST -mcpu=750 -meabi -mhard-float
    CXXFLAGS += -ffunction-sections -fdata-sections -D__wiiu__ -D__wut__
    STATIC_LINKING = 1
    HAVE_OPENGL = 0
