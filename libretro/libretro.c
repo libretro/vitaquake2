@@ -52,6 +52,17 @@ unsigned	sys_frame_time;
 uint64_t rumble_tick;
 void *tex_buffer = NULL;
 
+/* Software-renderer present target. When the frontend offers a software
+ * framebuffer and supports frame duplication, SWimp_EndFrame converts the
+ * paletted frame straight into sw_present_target (honouring sw_present_pitch
+ * in bytes), removing the tex_buffer -> frontend memcpy. sw_present_active
+ * records whether the renderer actually produced a frame this call. */
+void    *sw_present_target = NULL;
+unsigned sw_present_pitch  = 0;
+int      sw_present_active = 0;
+static bool libretro_can_dupe = false;
+static bool sw_have_presented = false;
+
 bool cdaudio_enabled = true;
 float cdaudio_volume = 0.5f;
 
@@ -1965,6 +1976,11 @@ void retro_deinit(void)
    /* Reset the millisecond epoch so the next load starts curtime from zero
     * instead of carrying the previous session's elapsed time. */
    sys_ms_base = 0;
+
+   /* Reset software-present state for a clean re-load. */
+   sw_present_target = NULL;
+   sw_present_active = 0;
+   sw_have_presented = false;
 }
 
 unsigned retro_api_version(void)
@@ -2116,6 +2132,12 @@ bool retro_load_game(const struct retro_game_info *info)
    else
       log_cb(RETRO_LOG_INFO, "Rumble environment not supported.\n");
 
+   {
+      bool can_dupe     = false;
+      libretro_can_dupe = environ_cb(RETRO_ENVIRONMENT_GET_CAN_DUPE, &can_dupe)
+            && can_dupe;
+   }
+
    update_variables(true);
 
    if (enable_opengl && !environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
@@ -2235,10 +2257,66 @@ bool retro_load_game(const struct retro_game_info *info)
    return true;
 }
 
+/* Acquire the frontend's software framebuffer for this frame so SWimp_EndFrame
+ * can render straight into it (avoiding the tex_buffer -> frontend copy). Only
+ * used when the frontend can duplicate frames: on frames where the renderer is
+ * skipped (e.g. cls.disable_screen during level loads) we re-present the
+ * previous frame with a NULL video_cb rather than leaving the frontend buffer
+ * undefined. When duplication is unavailable sw_present_target stays NULL and
+ * retro_run_video keeps the original copy-based path. */
+static void sw_acquire_framebuffer(void)
+{
+   struct retro_framebuffer fb = {0};
+
+   sw_present_target = NULL;
+   sw_present_active = 0;
+
+   if (!is_soft_render || !libretro_can_dupe
+         || sw_fb_status == SW_FB_UNSUPPORTED
+         || fmt != RETRO_PIXEL_FORMAT_RGB565)
+      return;
+
+   fb.width        = scr_width;
+   fb.height       = scr_height;
+   fb.access_flags = RETRO_MEMORY_ACCESS_WRITE;
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_CURRENT_SOFTWARE_FRAMEBUFFER, &fb))
+   {
+      if (sw_fb_status == SW_FB_UNKNOWN)
+      {
+         sw_fb_status = SW_FB_SUPPORTED;
+         LOG_FILE(
+               "vitaQuakeII: software framebuffer acquired from frontend.\n");
+      }
+      sw_present_target = fb.data;
+      sw_present_pitch  = fb.pitch;
+   }
+   else if (sw_fb_status == SW_FB_UNKNOWN)
+      sw_fb_status = SW_FB_UNSUPPORTED;
+}
+
 static void retro_run_video(void)
 {
    if (is_soft_render)
    {
+      if (sw_present_target)
+      {
+         /* SWimp_EndFrame rendered straight into the frontend buffer. If the
+          * frame was skipped (renderer not run) duplicate the previous one. */
+         if (sw_present_active)
+         {
+            video_cb(sw_present_target, scr_width, scr_height, sw_present_pitch);
+            sw_have_presented = true;
+         }
+         else if (sw_have_presented)
+            video_cb(NULL, scr_width, scr_height, sw_present_pitch);
+         else
+            video_cb(tex_buffer, scr_width, scr_height, scr_width << 1);
+         return;
+      }
+
+      /* No direct target this frame (duplication unavailable, or probe
+       * pending): keep the original copy-into-frontend-FB fast path. */
       if (sw_fb_status != SW_FB_UNSUPPORTED)
       {
          struct retro_framebuffer fb = {0};
@@ -2323,6 +2401,11 @@ void retro_run(void)
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
       update_variables(false);
+
+   /* Offer SWimp_EndFrame a frontend framebuffer to render directly into,
+    * removing a full-frame copy in retro_run_video. No-op unless the frontend
+    * supports both software framebuffers and frame duplication. */
+   sw_acquire_framebuffer();
 
    /* TODO/FIXME - argument should be changed into float for better accuracy of fixed timestep */
    Qcommon_Frame (framerate_ms);

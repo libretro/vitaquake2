@@ -9,6 +9,9 @@ uint16_t palette_tbl[256];
 extern int scr_width;
 extern int scr_height;
 extern void *tex_buffer;
+extern void    *sw_present_target;
+extern unsigned sw_present_pitch;
+extern int      sw_present_active;
 
 void VID_NewWindow (int width, int height);
 
@@ -18,15 +21,31 @@ void SWimp_BeginFrame( float camera_separation )
 
 void SWimp_EndFrame (void)
 {
-	uint16_t *rgb565_buffer = (uint16_t*)tex_buffer;
 	const pixel_t *src = vid.buffer;
-	int i, n = scr_width * scr_height;
 
-	/* Walk both buffers linearly. The previous column-major traversal
-	 * (x outer, y inner) strode by scr_width on every step and thrashed the
-	 * cache; the result is identical, this just keeps the access sequential. */
-	for (i = 0; i < n; i++)
-		rgb565_buffer[i] = palette_tbl[src[i]];
+	if (sw_present_target)
+	{
+		/* Convert straight into the frontend framebuffer. Its pitch is in
+		 * bytes and rows may be padded, so advance per row. */
+		int x, y;
+		for (y = 0; y < scr_height; y++)
+		{
+			uint16_t      *dst = (uint16_t *)((uint8_t *)sw_present_target
+			                                  + (size_t)y * sw_present_pitch);
+			const pixel_t *s   = src + (size_t)y * scr_width;
+			for (x = 0; x < scr_width; x++)
+				dst[x] = palette_tbl[s[x]];
+		}
+		sw_present_active = 1;
+	}
+	else
+	{
+		/* No frontend buffer this frame: fill tex_buffer linearly. */
+		uint16_t *dst = (uint16_t*)tex_buffer;
+		int i, n = scr_width * scr_height;
+		for (i = 0; i < n; i++)
+			dst[i] = palette_tbl[src[i]];
+	}
 }
 
 int			SWimp_Init( void *hInstance, void *wndProc )
@@ -83,7 +102,7 @@ rserr_t		SWimp_SetMode( int *pwidth, int *pheight, int mode, qboolean fullscreen
 	vid.rowbytes = scr_width;
 	vid.buffer = malloc(scr_width*scr_height);
 	
-	tex_buffer = malloc(scr_width*scr_height*sizeof(uint16_t));
+	tex_buffer = calloc((size_t)scr_width*scr_height, sizeof(uint16_t));
 	
 	SWimp_SetPalette((const unsigned char*)start_palette);
 	
