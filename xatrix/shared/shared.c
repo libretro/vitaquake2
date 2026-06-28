@@ -791,6 +791,28 @@ FloatSwap(float f)
 	return dat2.f;
 }
 
+/* ShortNoSwap/LongNoSwap/FloatNoSwap are pass-throughs. They are no longer
+ * part of the Big/Little selection, but the savegame function tables
+ * (gamefunc_list.h) reference them by name for pointer relocation, so the
+ * symbols must remain defined. */
+short
+ShortNoSwap(short l)
+{
+	return l;
+}
+
+int
+LongNoSwap(int l)
+{
+	return l;
+}
+
+float
+FloatNoSwap(float f)
+{
+	return f;
+}
+
 /*
  * Endianness is a compile-time decision: MSB_FIRST defined means a
  * big-endian host, undefined means little-endian. The Big and Little
