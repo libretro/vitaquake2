@@ -1220,18 +1220,18 @@ void Hunk_Free (void *base)
       free(base);
 }
 
+static uint64_t sys_ms_base = 0;
+
 int Sys_Milliseconds (void)
 {
-   static uint64_t	base;
-
    uint64_t time = cpu_features_get_time_usec() / 1000;
 
-   if (!base)
+   if (!sys_ms_base)
    {
-      base = time;
+      sys_ms_base = time;
    }
 
-   curtime = (int)(time - base);
+   curtime = (int)(time - sys_ms_base);
 
    return curtime;
 }
@@ -1961,6 +1961,10 @@ void retro_deinit(void)
     * otherwise stay false after the first session, causing a subsequent
     * retro_load_game() to skip Qcommon_Init() and run on torn-down state. */
    first_boot = true;
+
+   /* Reset the millisecond epoch so the next load starts curtime from zero
+    * instead of carrying the previous session's elapsed time. */
+   sys_ms_base = 0;
 }
 
 unsigned retro_api_version(void)
@@ -2469,6 +2473,11 @@ qboolean SNDDMA_Init(void)
    dma.samplepos        = 0;
    dma.submission_chunk = 1;
    dma.buffer           = (byte *)audio_buffer;
+
+   /* Reset the ring read cursor and clear stale samples so a re-load does
+    * not start mid-buffer or play back the previous session's audio. */
+   audio_buffer_ptr     = 0;
+   memset(audio_buffer, 0, sizeof(audio_buffer));
 
    sound_initialized    = 1;
 
