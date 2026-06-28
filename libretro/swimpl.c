@@ -60,8 +60,16 @@ void		SWimp_SetPalette( const unsigned char *palette)
 
 void		SWimp_Shutdown( void )
 {
-	free(vid.buffer);
-	free(tex_buffer);
+	if (vid.buffer)
+	{
+		free(vid.buffer);
+		vid.buffer = NULL;
+	}
+	if (tex_buffer)
+	{
+		free(tex_buffer);
+		tex_buffer = NULL;
+	}
 }
 
 rserr_t		SWimp_SetMode( int *pwidth, int *pheight, int mode, qboolean fullscreen )
