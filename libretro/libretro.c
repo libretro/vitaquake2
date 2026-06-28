@@ -1955,6 +1955,12 @@ void retro_deinit(void)
    libretro_supports_bitmasks = false;
 
    RHMAP_FREE(input_kb_keys_hash_map);
+
+   /* Re-arm engine initialisation. first_boot is a file-scope initialiser
+    * that runs once per process; on a statically linked frontend it would
+    * otherwise stay false after the first session, causing a subsequent
+    * retro_load_game() to skip Qcommon_Init() and run on torn-down state. */
+   first_boot = true;
 }
 
 unsigned retro_api_version(void)
