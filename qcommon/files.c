@@ -396,7 +396,7 @@ pack_t *FS_LoadPackFile (char *packfile)
 	int				numpackfiles;
 	pack_t			*pack;
 	RFILE			*packhandle;
-	dpackfile_t	info[MAX_FILES_IN_PACK];
+	dpackfile_t		*info;
 	unsigned		checksum;
 	
 	packhandle = rfopen(packfile, "rb");
@@ -404,32 +404,68 @@ pack_t *FS_LoadPackFile (char *packfile)
 		return NULL;
 	}
 	
-	rfread (&header, 1, sizeof(header), packhandle);
+	if (rfread (&header, 1, sizeof(header), packhandle) != (int64_t)sizeof(header))
+	{
+		rfclose (packhandle);
+		Com_Error (ERR_FATAL, "%s is too small to be a packfile", packfile);
+	}
 	if (LittleLong(header.ident) != IDPAKHEADER)
+	{
+		rfclose (packhandle);
 		Com_Error (ERR_FATAL, "%s is not a packfile", packfile);
+	}
 	header.dirofs = LittleLong (header.dirofs);
 	header.dirlen = LittleLong (header.dirlen);
 
+	/* The directory offset/length come straight from the (potentially
+	 * malicious) file. Reject negative values and a directory length that
+	 * is not a whole number of entries before deriving any sizes from them. */
+	if (header.dirofs < 0 || header.dirlen < 0
+		|| (header.dirlen % (int)sizeof(dpackfile_t)) != 0)
+	{
+		rfclose (packhandle);
+		Com_Error (ERR_FATAL, "%s has a bad directory", packfile);
+	}
+
 	numpackfiles = header.dirlen / sizeof(dpackfile_t);
 
-	if (numpackfiles > MAX_FILES_IN_PACK)
+	if (numpackfiles == 0 || numpackfiles > MAX_FILES_IN_PACK)
+	{
+		rfclose (packhandle);
 		Com_Error (ERR_FATAL, "%s has %i files", packfile, numpackfiles);
+	}
+
+	/* Read the directory into a right-sized heap buffer rather than a
+	 * 256 KB stack array; bound the read so a truncated file errors out
+	 * instead of leaving stale data in the buffer. */
+	info = (dpackfile_t *)Z_Malloc (header.dirlen);
+
+	rfseek (packhandle, header.dirofs, SEEK_SET);
+	if (rfread (info, 1, header.dirlen, packhandle) != (int64_t)header.dirlen)
+	{
+		Z_Free (info);
+		rfclose (packhandle);
+		Com_Error (ERR_FATAL, "%s has a truncated directory", packfile);
+	}
+
+	/* crc the directory to check for modifications */
+	checksum = Com_BlockChecksum ((void *)info, header.dirlen);
 
 	newfiles = Z_Malloc (numpackfiles * sizeof(packfile_t));
 
-	rfseek (packhandle, header.dirofs, SEEK_SET);
-	rfread (info, 1, header.dirlen, packhandle);
-
-// crc the directory to check for modifications
-	checksum = Com_BlockChecksum ((void *)info, header.dirlen);
-
-// parse the directory
+	/* parse the directory */
 	for (i=0 ; i<numpackfiles ; i++)
 	{
-		strcpy (newfiles[i].name, info[i].name);
+		/* info[i].name is 56 bytes and need not be NUL-terminated; copy a
+		 * bounded amount into the larger (MAX_QPATH) destination and force a
+		 * terminator. */
+		memcpy (newfiles[i].name, info[i].name, sizeof(info[i].name));
+		newfiles[i].name[sizeof(info[i].name)] = '\0';
 		newfiles[i].filepos = LittleLong(info[i].filepos);
 		newfiles[i].filelen = LittleLong(info[i].filelen);
 	}
+
+	Z_Free (info);
 
 	pack = Z_Malloc (sizeof (pack_t));
 	strcpy (pack->filename, packfile);
