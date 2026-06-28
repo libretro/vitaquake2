@@ -18,13 +18,15 @@ void SWimp_BeginFrame( float camera_separation )
 
 void SWimp_EndFrame (void)
 {
-	uint16_t* rgb565_buffer = (uint16_t*)tex_buffer;
-	int x,y;
-	for(x=0; x<scr_width; x++){
-		for(y=0; y<scr_height;y++){
-			rgb565_buffer[x+y*scr_width] = palette_tbl[vid.buffer[y*scr_width + x]];
-		}
-	}
+	uint16_t *rgb565_buffer = (uint16_t*)tex_buffer;
+	const pixel_t *src = vid.buffer;
+	int i, n = scr_width * scr_height;
+
+	/* Walk both buffers linearly. The previous column-major traversal
+	 * (x outer, y inner) strode by scr_width on every step and thrashed the
+	 * cache; the result is identical, this just keeps the access sequential. */
+	for (i = 0; i < n; i++)
+		rgb565_buffer[i] = palette_tbl[src[i]];
 }
 
 int			SWimp_Init( void *hInstance, void *wndProc )
