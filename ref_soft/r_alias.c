@@ -75,12 +75,6 @@ typedef struct {
 	int	index1;
 } aedge_t;
 
-static aedge_t	aedges[12] = {
-{0, 1}, {1, 2}, {2, 3}, {3, 0},
-{4, 5}, {5, 6}, {6, 7}, {7, 4},
-{0, 5}, {1, 4}, {2, 7}, {3, 6}
-};
-
 #define BBOX_TRIVIAL_ACCEPT 0
 #define BBOX_MUST_CLIP_XY   1
 #define BBOX_MUST_CLIP_Z    2

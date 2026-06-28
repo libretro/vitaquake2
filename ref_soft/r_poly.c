@@ -891,7 +891,8 @@ void R_PolygonScanRightEdge (void)
 */
 void R_ClipAndDrawPoly( float alpha, qboolean isturbulent, qboolean textured )
 {
-	emitpoint_t	outverts[MAXWORKINGVERTS+3], *pout;
+	static emitpoint_t	outverts[MAXWORKINGVERTS+3];
+	emitpoint_t	*pout;
 	float		*pv;
 	int			i, nump;
 	float		scale;
@@ -1005,7 +1006,6 @@ void R_BuildPolygonFromSurface(msurface_t *fa)
 {
 	int			i, lindex, lnumverts;
 	medge_t		*pedges, *r_pedge;
-	int			vertpage;
 	float		*vec;
 	vec5_t     *pverts;
 	float       tmins[2] = { 0, 0 };
@@ -1015,7 +1015,6 @@ void R_BuildPolygonFromSurface(msurface_t *fa)
 	// reconstruct the polygon
 	pedges = refsoft_currentmodel->edges;
 	lnumverts = fa->numedges;
-	vertpage = 0;
 
 	pverts = r_clip_verts[0];
 
@@ -1128,7 +1127,7 @@ static void R_DrawPoly( qboolean iswater )
 	int			i, nump;
 	float		ymin, ymax;
 	emitpoint_t	*pverts;
-	espan_t	spans[MAXHEIGHT+1];
+	static espan_t	spans[MAXHEIGHT+1];
 
 	s_polygon_spans = spans;
 

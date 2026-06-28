@@ -34,22 +34,6 @@ typedef struct
 
 static partparms_t partparms;
 
-static byte BlendParticle33( int pcolor, int dstcolor )
-{
-	return vid.alphamap[pcolor + dstcolor*256];
-}
-
-static byte BlendParticle66( int pcolor, int dstcolor )
-{
-	return vid.alphamap[pcolor*256+dstcolor];
-}
-
-static byte BlendParticle100( int pcolor, int dstcolor )
-{
-	dstcolor = dstcolor;
-	return pcolor;
-}
-
 /*
 ** SWR_DrawParticle
 **
@@ -73,7 +57,6 @@ void SWR_DrawParticle( void )
 	short	*pz;
 	int      color = pparticle->color;
 	int		i, izi, pix, count, u, v;
-	byte  (*blendparticle)( int, int );
 
 	/*
 	** transform the particle
@@ -86,16 +69,6 @@ void SWR_DrawParticle( void )
 
 	if (transformed[2] < PARTICLE_Z_CLIP)
 		return;
-
-	/*
-	** bind the blend function pointer to the appropriate blender
-	*/
-	if ( level == PARTICLE_33 )
-		blendparticle = BlendParticle33;
-	else if ( level == PARTICLE_66 )
-		blendparticle = BlendParticle66;
-	else 
-		blendparticle = BlendParticle100;
 
 	/*
 	** project the point
@@ -194,7 +167,6 @@ void SWR_DrawParticles (void)
 {
 	particle_t *p;
 	int         i;
-	extern unsigned long fpu_sp24_cw, fpu_chop_cw;
 
 	VectorScale( vright, xscaleshrink, r_pright );
 	VectorScale( vup, yscaleshrink, r_pup );

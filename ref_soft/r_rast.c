@@ -744,7 +744,7 @@ void R_RenderBmodelFace (bedge_t *pedges, msurface_t *psurf)
 	mplane_t	*pplane;
 	float		distinv;
 	vec3_t		p_normal;
-	medge_t		tedge;
+	static medge_t		tedge;
 	clipplane_t	*pclip;
 
 	if (psurf->texinfo->flags & (SURF_TRANS33|SURF_TRANS66))

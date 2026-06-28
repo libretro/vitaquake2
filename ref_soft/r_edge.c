@@ -637,7 +637,7 @@ void R_ScanEdges (void)
 	edge_aftertail.prev = &edge_tail;
 
 // FIXME: do we need this now that we clamp x in r_draw.c?
-	edge_sentinel.u = 2000 << 24;		// make sure nothing sorts past this
+	edge_sentinel.u = (fixed16_t)(2000U << 24);	// make sure nothing sorts past this
 	edge_sentinel.prev = &edge_aftertail;
 
 //	
@@ -768,13 +768,11 @@ D_CalcGradients
 */
 void D_CalcGradients (msurface_t *pface)
 {
-	mplane_t	*pplane;
 	float		mipscale;
 	vec3_t		p_temp1;
 	vec3_t		p_saxis, p_taxis;
 	float		t;
 
-	pplane = pface->plane;
 
 	mipscale = 1.0 / (float)(1 << miplevel);
 
@@ -1042,7 +1040,7 @@ void D_DrawflatSurfaces (void)
 
 		// make a stable color for each surface by taking the low
 		// bits of the msurface pointer
-		D_FlatFillSurface (s, (int)s->msurf & 0xFF);
+		D_FlatFillSurface (s, (int)((size_t)s->msurf & 0xFF));
 		D_DrawZSpans (s->spans);
 	}
 }

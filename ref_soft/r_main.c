@@ -30,7 +30,6 @@ entity_t	r_worldentity;
 static char		skyname[MAX_QPATH];
 static float		skyrotate;
 static vec3_t		skyaxis;
-static image_t		*sky_images[6];
 
 refdef_t	r_refsoft_newrefdef;
 model_t		*refsoft_currentmodel;
@@ -1208,8 +1207,7 @@ void R_GammaCorrectAndSetPalette( const unsigned char *palette )
 static void SWR_CinematicSetPalette( const unsigned char *palette )
 {
 	byte palette32[1024];
-	int		i, j, w;
-	int		*d;
+	int		i;
 
 	// clear screen to black to avoid any palette flash
 	memset(vid.buffer, 0, vid.height * vid.rowbytes);

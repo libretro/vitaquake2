@@ -435,8 +435,6 @@ static byte         *pbase, *pdest;
 static fixed16_t    s, t, snext, tnext, sstep, tstep;
 static float        sdivz, tdivz, zi, z, du, dv, spancountminus1;
 static float        sdivzstepu, tdivzstepu, zistepu;
-static int          izi, izistep; // mankrip
-static short      *pz; // mankrip
 
 //qbism: pointer to pbase and macroize idea from mankrip
 #define WRITEPDEST(i) { pdest[i] = *(pbase + (s >> 16) + (t >> 16) * cachewidth); s+=sstep; t+=tstep;}
