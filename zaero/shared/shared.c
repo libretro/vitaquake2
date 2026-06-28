@@ -853,7 +853,7 @@ FloatSwap(float f)
 
 /*
  * Endianness is a compile-time decision: MSB_FIRST defined means a
- * big-endian host, undefined means little-endian. The Big*/Little*
+ * big-endian host, undefined means little-endian. The Big and Little
  * helpers resolve to either a no-op or an unconditional swap, with no
  * runtime probe and no per-call function-pointer indirection.
  */
