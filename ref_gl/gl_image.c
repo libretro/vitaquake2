@@ -215,16 +215,7 @@ int		gl_filter_max = GL_LINEAR;
 
 void GL_SetTexturePalette( unsigned palette[256] )
 {
-	int i;
-	unsigned char temptable[768];
-
-	for ( i = 0; i < 256; i++ )
-	{
-		temptable[i*3+0] = ( palette[i] >> 0 ) & 0xff;
-		temptable[i*3+1] = ( palette[i] >> 8 ) & 0xff;
-		temptable[i*3+2] = ( palette[i] >> 16 ) & 0xff;
-	}
-
+	/* No-op: paletted-texture uploads are unused. Kept for the refexport ABI. */
 }
 
 void GL_TexEnv( GLenum mode )
@@ -841,12 +832,14 @@ image_t	*GL_FindImage (char *name, imagetype_t type, bool force)
    }
    else if (!strcmp(name+len-4, ".pcx") || !strcmp(name+len-4, ".wal"))
    {
-      strncpy (s, name, sizeof(s));
+      strncpy (s, name, sizeof(s) - 1);
+      s[sizeof(s) - 1] = '\0';
       s[len-3]='t'; s[len-2]='g'; s[len-1]='a';
       image = GL_FindImage(s,type,false);
       if (image) 
          return image;
-      strncpy (s, name, sizeof(s));
+      strncpy (s, name, sizeof(s) - 1);
+      s[sizeof(s) - 1] = '\0';
       s[len-3]='j'; s[len-2]='p'; s[len-1]='g';
       image = GL_FindImage(s,type,false);
       if (image)

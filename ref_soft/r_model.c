@@ -185,7 +185,7 @@ static model_t *SWR_Mod_ForName (char *name, qboolean crash)
 SWR_Mod_PointInLeaf
 ===============
 */
-mleaf_t *SWR_Mod_PointInLeaf (vec3_t p, model_t *model)
+mleaf_t *SWR_Mod_PointInLeaf (float *p, model_t *model)
 {
 	mnode_t		*node;
 	float		d;
@@ -467,7 +467,7 @@ void Mod_LoadTexinfo (lump_t *l)
 {
 	texinfo_t *in;
 	mtexinfo_t *out, *step;
-	int 	i, j, count;
+	int 	i, j, k, count;
 	float	len1, len2;
 	char	name[MAX_QPATH];
 	int		next;
@@ -483,8 +483,9 @@ void Mod_LoadTexinfo (lump_t *l)
 
 	for ( i=0 ; i<count ; i++, in++, out++)
 	{
-		for (j=0 ; j<8 ; j++)
-			out->vecs[0][j] = LittleFloat (in->vecs[0][j]);
+		for (j=0 ; j<2 ; j++)
+			for (k=0 ; k<4 ; k++)
+				out->vecs[j][k] = LittleFloat (in->vecs[j][k]);
 		len1 = VectorLength (out->vecs[0]);
 		len2 = VectorLength (out->vecs[1]);
 		len1 = (len1 + len2)/2;

@@ -55,7 +55,7 @@ int		refgl_registration_sequence;
 Mod_PointInLeaf
 ===============
 */
-mleaf_t *Mod_PointInLeaf (vec3_t p, model_t *model)
+mleaf_t *Mod_PointInLeaf (float *p, model_t *model)
 {
 	mnode_t		*node;
 	float		d;
@@ -492,7 +492,7 @@ static qboolean Mod_CheckWalSizeList (const char *name, int *width, int *height)
 		if (hash == walSizeList[i].hash)
       {
          /* compare hash first */
-			if (walSizeList[i].name && strlen(walSizeList[i].name)
+			if (strlen(walSizeList[i].name)
 				&& !strcmp(name, walSizeList[i].name))
          {
             /* return size of texture */
@@ -563,7 +563,7 @@ Mod_LoadTexinfo
 static void Mod_LoadTexinfo (lump_t *l)
 {
 	mtexinfo_t *out, *step;
-	int 	i, j, count;
+	int 	i, j, k, count;
 	char	name[MAX_QPATH];
 	int		next;
 	texinfo_t *in = (void *)(mod_base + l->fileofs);
@@ -578,8 +578,9 @@ static void Mod_LoadTexinfo (lump_t *l)
 
 	for ( i=0 ; i < count ; i++, in++, out++)
 	{
-		for (j=0 ; j<8 ; j++)
-			out->vecs[0][j] = LittleFloat (in->vecs[0][j]);
+		for (j=0 ; j<2 ; j++)
+			for (k=0 ; k<4 ; k++)
+				out->vecs[j][k] = LittleFloat (in->vecs[j][k]);
 
 		out->flags = LittleLong (in->flags);
 		next = LittleLong (in->nexttexinfo);
