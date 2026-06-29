@@ -2544,7 +2544,6 @@ qboolean SNDDMA_Init(void)
 
    /* Force Quake to use our settings */
    Cvar_SetValue( "s_khz", AUDIO_SAMPLE_RATE );
-   Cvar_SetValue( "s_loadas8bit", false );
 
    /* Fill the audio DMA information block */
    dma.samplebits       = 16;

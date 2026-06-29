@@ -1176,7 +1176,7 @@ static void ControlsSetMenuItemValues( void )
 	#ifndef _3DS
 
 	s_options_cdvolume_box.curvalue 		= !Cvar_VariableValue("cd_nocd");
-	s_options_quality_list.curvalue			= !Cvar_VariableValue( "s_loadas8bit" );
+	s_options_quality_list.curvalue			= (Cvar_VariableValue( "s_khz" ) >= 22);
 
 	#endif
 
@@ -1297,12 +1297,10 @@ static void UpdateSoundQualityFunc( void *unused )
 	if ( s_options_quality_list.curvalue )
 	{
 		Cvar_SetValue( "s_khz", 22 );
-		Cvar_SetValue( "s_loadas8bit", false );
 	}
 	else
 	{
 		Cvar_SetValue( "s_khz", 11 );
-		Cvar_SetValue( "s_loadas8bit", true );
 	}
 
 	Cvar_SetValue( "s_primary", s_options_compatibility_list.curvalue );
@@ -1395,7 +1393,7 @@ void Options_MenuInit( void )
 	s_options_quality_list.generic.name		= "sound quality";
 	s_options_quality_list.generic.callback = UpdateSoundQualityFunc;
 	s_options_quality_list.itemnames		= quality_items;
-	s_options_quality_list.curvalue			= !Cvar_VariableValue( "s_loadas8bit" );
+	s_options_quality_list.curvalue			= (Cvar_VariableValue( "s_khz" ) >= 22);
 
 	s_options_compatibility_list.generic.type	= MTYPE_SPINCONTROL;
 	s_options_compatibility_list.generic.x		= 0;
