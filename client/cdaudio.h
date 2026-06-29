@@ -38,6 +38,7 @@ void CDAudio_Stop(void);
 void CDAudio_Update(void);
 
 void CDAudio_Mix(int16_t *buffer, size_t num_frames, float volume);
+void CDAudio_MixF(float *buffer, size_t num_frames, float volume);
 qboolean CDAudio_Playing(void);
 
 #endif

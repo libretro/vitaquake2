@@ -28,6 +28,16 @@ int		snd_scaletable[32][256];
 int 	*snd_p, snd_linear_count, snd_vol;
 short	*snd_out;
 
+/* Float audio output (negotiated via RETRO_ENVIRONMENT_GET_AUDIO_SAMPLE_
+ * BATCH_FLOAT in the libretro layer). When s_float_output is set, the paint
+ * buffer is transferred as normalized float [-1,1] into snd_float_buffer
+ * instead of int16 into dma.buffer; both pointers are owned by the libretro
+ * layer. When it is 0 the int16 path runs unchanged and stays integer-only /
+ * deterministic. */
+float	*snd_out_f;
+float	*snd_float_buffer = NULL;
+int		s_float_output    = 0;
+
 /*
 ================
 S_SoftClip
@@ -160,6 +170,91 @@ void S_TransferStereo16 (unsigned *pbuf, int endtime)
 }
 
 /*
+================
+S_SoftClipF / S_TransferStereoFloat
+
+Float counterparts of S_SoftClip / S_TransferStereo16, used only when the
+frontend negotiated float audio output. The paintbuffer accumulator carries 8
+fractional bits (the int16 path does snd_p[i] >> 8), so normalizing by
+256*32768 keeps that sub-int16 precision instead of discarding it. The soft
+clipper uses the same 0.75-full-scale knee curve as the integer version, so
+float and int16 output share the same tonal character; the float path just
+avoids the int16 quantization and the frontend's int16->float widen.
+================
+*/
+#define S_SOFTCLIP_KNEE_F   (24576.0f / 32768.0f)   /* 0.75 full scale */
+#define S_SOFTCLIP_MAX_F    (32767.0f / 32768.0f)
+#define S_SOFTCLIP_END_F    (40958.0f / 32768.0f)
+#define S_SOFTCLIP_INVDEN_F (32768.0f / 32764.0f)   /* 1 / (DEN/32768) */
+
+float S_SoftClipNormF (float v)
+{
+	float	d;
+
+	if (v >= 0.0f)
+	{
+		if (v <= S_SOFTCLIP_KNEE_F)
+			return v;
+		if (v >= S_SOFTCLIP_END_F)
+			return S_SOFTCLIP_MAX_F;
+		d = S_SOFTCLIP_END_F - v;
+		return S_SOFTCLIP_MAX_F - d * d * S_SOFTCLIP_INVDEN_F;
+	}
+
+	v = -v;
+	if (v <= S_SOFTCLIP_KNEE_F)
+		return -v;
+	if (v >= S_SOFTCLIP_END_F)
+		return -1.0f;
+	d = S_SOFTCLIP_END_F - v;
+	return -(S_SOFTCLIP_MAX_F - d * d * S_SOFTCLIP_INVDEN_F);
+}
+
+float S_SoftClipF (int v32)
+{
+	/* /256 paint scale, /32768 full scale */
+	return S_SoftClipNormF ((float)v32 * (1.0f / 8388608.0f));
+}
+
+void S_WriteLinearBlastStereoFloat (void)
+{
+	int		i;
+
+	for (i=0 ; i<snd_linear_count ; i+=2)
+	{
+		snd_out_f[i]   = S_SoftClipF (snd_p[i]);
+		snd_out_f[i+1] = S_SoftClipF (snd_p[i+1]);
+	}
+}
+
+void S_TransferStereoFloat (float *pbuf, int endtime)
+{
+	int		lpos;
+	int		lpaintedtime;
+
+	snd_p = (int *) paintbuffer;
+	lpaintedtime = paintedtime;
+
+	while (lpaintedtime < endtime)
+	{
+		lpos = lpaintedtime & ((dma.samples>>1)-1);
+
+		snd_out_f = pbuf + (lpos<<1);
+
+		snd_linear_count = (dma.samples>>1) - lpos;
+		if (lpaintedtime + snd_linear_count > endtime)
+			snd_linear_count = endtime - lpaintedtime;
+
+		snd_linear_count <<= 1;
+
+		S_WriteLinearBlastStereoFloat ();
+
+		snd_p += snd_linear_count;
+		lpaintedtime += (snd_linear_count>>1);
+	}
+}
+
+/*
 ===================
 S_TransferPaintBuffer
 
@@ -188,6 +283,12 @@ void S_TransferPaintBuffer(int endtime)
 			paintbuffer[i].left = paintbuffer[i].right = sin((paintedtime+i)*0.1)*20000*256;
 	}
 
+
+	if (s_float_output && snd_float_buffer)
+	{	// float output negotiated -- transfer as normalized float
+		S_TransferStereoFloat (snd_float_buffer, endtime);
+		return;
+	}
 
 	if (dma.samplebits == 16 && dma.channels == 2)
 	{	// optimized case

@@ -135,6 +135,12 @@ extern	vec3_t	listener_up;
 extern	dma_t	dma;
 extern	playsound_t	s_pendingplays;
 
+/* Float audio output state (see snd_mix.c). The libretro layer sets these:
+ * s_float_output != 0 selects the float transfer path, snd_float_buffer is
+ * the float output ring it owns. */
+extern	int		s_float_output;
+extern	float	*snd_float_buffer;
+
 #define	MAX_RAW_SAMPLES	8192
 extern	portable_samplepair_t	s_rawsamples[MAX_RAW_SAMPLES];
 

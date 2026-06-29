@@ -165,6 +165,17 @@ static retro_log_printf_t log_cb;
 static retro_video_refresh_t video_cb;
 static retro_audio_sample_t audio_cb;
 static retro_audio_sample_batch_t audio_batch_cb;
+/* Float audio output, negotiated once in retro_load_game via
+ * RETRO_ENVIRONMENT_GET_AUDIO_SAMPLE_BATCH_FLOAT. use_float_output stays 0
+ * (and audio_batch_cb_float NULL) on any frontend that doesn't support it,
+ * which keeps the deterministic int16 path. */
+static retro_audio_sample_batch_float_t audio_batch_cb_float = NULL;
+static int use_float_output = 0;
+/* Engine-side float output state (defined in client/snd_mix.c; also declared
+ * in snd_loc.h, which is included further down). Declared here so the load /
+ * unload paths above that include can reach them. */
+extern int    s_float_output;
+extern float *snd_float_buffer;
 retro_environment_t environ_cb;
 static retro_input_poll_t poll_cb;
 static retro_input_state_t input_cb;
@@ -2271,6 +2282,24 @@ bool retro_load_game(const struct retro_game_info *info)
    extract_directory(parent_dir, g_rom_dir, sizeof(parent_dir));
    strlcpy(g_rom_dir, parent_dir, sizeof(g_rom_dir));
 
+   /* Negotiate float audio output once, now that the game is loaded and the
+    * audio path is up. If the frontend supports it we commit to float for
+    * this game's lifetime; otherwise the int16 path is used unchanged.
+    * (Contract: do this once per loaded game, never mix formats.) */
+   use_float_output     = 0;
+   audio_batch_cb_float = NULL;
+   {
+      struct retro_audio_sample_float_callback fcb;
+      fcb.batch = NULL;
+      if (environ_cb(RETRO_ENVIRONMENT_GET_AUDIO_SAMPLE_BATCH_FLOAT, &fcb)
+            && fcb.batch)
+      {
+         audio_batch_cb_float = fcb.batch;
+         use_float_output     = 1;
+      }
+   }
+   s_float_output = use_float_output;
+
    return true;
 }
 
@@ -2436,6 +2465,13 @@ void retro_run(void)
 void retro_unload_game(void)
 {
    sw_fb_status = SW_FB_UNKNOWN;
+
+   /* Drop the float-output negotiation; the frontend's batch pointer is only
+    * valid until here, and the next game re-negotiates. */
+   use_float_output     = 0;
+   audio_batch_cb_float = NULL;
+   s_float_output       = 0;
+   snd_float_buffer     = NULL;
 }
 
 unsigned retro_get_region(void)
@@ -2497,6 +2533,9 @@ static int stop_audio = false;
 
 static int16_t audio_buffer[AUDIO_BUFFER_SIZE];
 static int16_t audio_out_buffer[AUDIO_BUFFER_SIZE];
+/* Float counterparts, used only when float output is negotiated. */
+static float   audio_buffer_f[AUDIO_BUFFER_SIZE];
+static float   audio_out_buffer_f[AUDIO_BUFFER_SIZE];
 
 static unsigned audio_batch_frames_max = AUDIO_BUFFER_SIZE >> 1;
 
@@ -2511,6 +2550,51 @@ static void audio_callback(void)
    unsigned audio_frames_remaining = frame_samps;
    int16_t *audio_out_ptr          = audio_out_buffer;
    unsigned i;
+
+   /* Float output path: produce normalized float, mix CD in float, and submit
+    * via the float batch callback. The engine transfers the paintbuffer as
+    * float when s_float_output is set (see S_TransferPaintBuffer), so the
+    * int16 ring is not used here. */
+   if (use_float_output)
+   {
+      float *out_f = audio_out_buffer_f;
+      float *p_f;
+
+      if (!sound_initialized || stop_audio)
+         memset(audio_out_buffer_f, 0, (frame_samps << 1) * sizeof(float));
+      else
+      {
+         unsigned prev = (unsigned)paintedtime;
+
+         S_PaintFrame((int)frame_samps);
+
+         for (i = 0; i < frame_samps; i++)
+         {
+            unsigned idx = ((prev + i) & ringmask) << 1;
+            *(out_f++) = audio_buffer_f[idx];
+            *(out_f++) = audio_buffer_f[idx + 1];
+         }
+      }
+
+      CDAudio_MixF(audio_out_buffer_f, frame_samps, cdaudio_volume);
+
+      p_f = audio_out_buffer_f;
+      do
+      {
+         unsigned to_write =
+            (audio_frames_remaining > audio_batch_frames_max) ?
+            audio_batch_frames_max : audio_frames_remaining;
+         unsigned written = audio_batch_cb_float(p_f, to_write);
+
+         if ((written < to_write) && (written > 0))
+            audio_batch_frames_max = written;
+
+         audio_frames_remaining -= to_write;
+         p_f                    += to_write << 1;
+      }
+      while (audio_frames_remaining > 0);
+      return;
+   }
 
    if (!sound_initialized || stop_audio)
       memset(audio_out_buffer, 0, (frame_samps << 1) * sizeof(int16_t));
@@ -2571,6 +2655,13 @@ qboolean SNDDMA_Init(void)
    dma.samplepos        = 0;
    dma.submission_chunk = 1;
    dma.buffer           = (byte *)audio_buffer;
+
+   /* Float output ring (used only when float output was negotiated). Hand the
+    * engine its pointer and clear it; s_float_output is (re)asserted from the
+    * negotiation result so a reload picks up the current frontend. */
+   snd_float_buffer     = audio_buffer_f;
+   s_float_output       = use_float_output;
+   memset(audio_buffer_f, 0, sizeof(audio_buffer_f));
 
    /* Clear stale samples so a re-load does not play back the previous
     * session's audio. */

@@ -22,6 +22,7 @@ extern bool cdaudio_enabled;
 
 /* Shared soft clipper from the SFX mixer (client/snd_mix.c). */
 extern int S_SoftClip(int v);
+extern float S_SoftClipNormF(float v);
 
 /* ------------------------------------------------------------------ */
 /* In-memory Ogg source for Tremor's ov_open_callbacks                */
@@ -307,6 +308,64 @@ void CDAudio_Mix(int16_t *buffer, size_t num_frames, float volume)
       r = (r * vol) >> 8;
       buffer[n * 2]     = (int16_t)S_SoftClip((int)buffer[n * 2]     + l);
       buffer[n * 2 + 1] = (int16_t)S_SoftClip((int)buffer[n * 2 + 1] + r);
+   }
+#endif
+}
+
+/* Float counterpart of CDAudio_Mix, used when float audio output has been
+ * negotiated. Identical interpolation; only the accumulate/clip differs --
+ * the int16 CD samples are normalized to [-1,1] and summed into the float
+ * output buffer, then soft-clipped with the same curve. */
+void CDAudio_MixF(float *buffer, size_t num_frames, float volume)
+{
+#if defined(HAVE_CDAUDIO)
+   size_t n;
+   int    vol;
+
+   if (!cd_playing || !buffer || num_frames == 0)
+      return;
+
+   vol = (int)(volume * 256.0f);   /* 8.8 fixed master gain (one scalar) */
+   if (vol <= 0)
+      return;
+
+   if (!cd_primed)
+   {
+      if (!cd_pull(cd_cur) || !cd_pull(cd_nxt))
+      {
+         cd_close();
+         return;
+      }
+      cd_frac   = 0;
+      cd_primed = true;
+   }
+
+   for (n = 0; n < num_frames; n++)
+   {
+      int l = cd_cur[0] + (int)(((int64_t)(cd_nxt[0] - cd_cur[0]) * cd_frac) >> 16);
+      int r = cd_cur[1] + (int)(((int64_t)(cd_nxt[1] - cd_cur[1]) * cd_frac) >> 16);
+
+      cd_frac += cd_step;
+      while (cd_frac >= 0x10000)
+      {
+         cd_cur[0] = cd_nxt[0];
+         cd_cur[1] = cd_nxt[1];
+         if (!cd_pull(cd_nxt))
+         {
+            l = (l * vol) >> 8;
+            r = (r * vol) >> 8;
+            buffer[n * 2]     = S_SoftClipNormF(buffer[n * 2]     + l * (1.0f / 32768.0f));
+            buffer[n * 2 + 1] = S_SoftClipNormF(buffer[n * 2 + 1] + r * (1.0f / 32768.0f));
+            cd_close();
+            return;
+         }
+         cd_frac -= 0x10000;
+      }
+
+      l = (l * vol) >> 8;
+      r = (r * vol) >> 8;
+      buffer[n * 2]     = S_SoftClipNormF(buffer[n * 2]     + l * (1.0f / 32768.0f));
+      buffer[n * 2 + 1] = S_SoftClipNormF(buffer[n * 2 + 1] + r * (1.0f / 32768.0f));
    }
 #endif
 }

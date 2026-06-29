@@ -1096,12 +1096,24 @@ void S_PaintFrame(int frame_samps)
 	// replay stale samples.
 	if (!sound_started || cls.disable_screen)
 	{
-		short	*out = (short *)dma.buffer;
-		for (i = 0 ; i < frame_samps ; i++)
+		if (s_float_output && snd_float_buffer)
 		{
-			idx = ((paintedtime + i) & ringmask) << 1;
-			out[idx]     = 0;
-			out[idx + 1] = 0;
+			for (i = 0 ; i < frame_samps ; i++)
+			{
+				idx = ((paintedtime + i) & ringmask) << 1;
+				snd_float_buffer[idx]     = 0.0f;
+				snd_float_buffer[idx + 1] = 0.0f;
+			}
+		}
+		else
+		{
+			short	*out = (short *)dma.buffer;
+			for (i = 0 ; i < frame_samps ; i++)
+			{
+				idx = ((paintedtime + i) & ringmask) << 1;
+				out[idx]     = 0;
+				out[idx + 1] = 0;
+			}
 		}
 		paintedtime += frame_samps;
 		return;
