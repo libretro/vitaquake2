@@ -2034,13 +2034,19 @@ void retro_set_environment(retro_environment_t cb)
    else
       log_cb = NULL;
 
-   vfs_iface_info.required_interface_version = 1;
+   /* Request VFS interface v3 (the highest we use). filestream needs v2,
+    * but directory enumeration (dirent) and path/mkdir need v3. Requesting
+    * a lower version left dirent and path on the local fallback while file
+    * streams used the frontend VFS, so save writers and the savegame
+    * directory wipe/enumeration operated on different filesystem views. */
+   vfs_iface_info.required_interface_version = 3;
    vfs_iface_info.iface                      = NULL;
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_VFS_INTERFACE, &vfs_iface_info))
    {
       filestream_vfs_init(&vfs_iface_info);
       dirent_vfs_init(&vfs_iface_info);
+      path_vfs_init(&vfs_iface_info);
    }
 
    environ_cb(RETRO_ENVIRONMENT_SET_CONTROLLER_INFO, (void*)ports);

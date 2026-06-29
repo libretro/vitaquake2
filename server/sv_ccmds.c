@@ -152,6 +152,43 @@ SAVEGAME FILES
 
 /*
 =====================
+SV_WipeMatching
+
+Delete every file matching a glob pattern through the libretro VFS.
+
+The matching names are snapshotted before any file is deleted: removing
+entries while the directory is still being walked is undefined and can
+silently skip files on some VFS/host backends, which is what let stale
+save/current state survive a wipe and get restored over a new game.
+filestream_delete() routes through the same VFS the writers use, so it
+removes the files that were actually created (raw remove() bypassed the
+VFS and could miss them entirely on redirecting backends).
+=====================
+*/
+#define SV_WIPE_MAX	64
+static void SV_WipeMatching (char *pattern)
+{
+	char	names[SV_WIPE_MAX][MAX_OSPATH];
+	int		count;
+	char	*s;
+
+	count = 0;
+	s = Sys_FindFirst (pattern, 0, 0);
+	while (s && count < SV_WIPE_MAX)
+	{
+		strncpy (names[count], s, sizeof(names[count]) - 1);
+		names[count][sizeof(names[count]) - 1] = '\0';
+		count++;
+		s = Sys_FindNext (0, 0);
+	}
+	Sys_FindClose ();
+
+	while (count > 0)
+		filestream_delete (names[--count]);
+}
+
+/*
+=====================
 SV_WipeSavegame
 
 Delete save/<XXX>/
@@ -160,7 +197,6 @@ Delete save/<XXX>/
 void SV_WipeSavegame (char *savename)
 {
 	char	name[MAX_OSPATH];
-	char	*s;
 	char  *savedir = g_save_dir;
 
 	if (g_save_dir[0] == '\0')
@@ -169,26 +205,14 @@ void SV_WipeSavegame (char *savename)
 	Com_DPrintf("SV_WipeSaveGame(%s)\n", savename);
 
 	Com_sprintf (name, sizeof(name), "%s/save/%s/server.ssv", savedir, savename);
-	remove (name);
+	filestream_delete (name);
 	Com_sprintf (name, sizeof(name), "%s/save/%s/game.ssv", savedir, savename);
-	remove (name);
+	filestream_delete (name);
 
 	Com_sprintf (name, sizeof(name), "%s/save/%s/*.sav", savedir, savename);
-	s = Sys_FindFirst( name, 0, 0 );
-	while (s)
-	{
-		remove (s);
-		s = Sys_FindNext( 0, 0 );
-	}
-	Sys_FindClose ();
+	SV_WipeMatching (name);
 	Com_sprintf (name, sizeof(name), "%s/save/%s/*.sv2", savedir, savename);
-	s = Sys_FindFirst(name, 0, 0 );
-	while (s)
-	{
-		remove (s);
-		s = Sys_FindNext( 0, 0 );
-	}
-	Sys_FindClose ();
+	SV_WipeMatching (name);
 }
 
 
