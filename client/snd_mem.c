@@ -37,6 +37,7 @@ void ResampleSfx (sfx_t *sfx, int inrate, int inwidth, byte *data)
 	int		srcsample;
 	float	stepscale;
 	int		i;
+	int		inlength;
 	int		sample, samplefrac, fracstep;
 	sfxcache_t	*sc;
 	
@@ -46,6 +47,7 @@ void ResampleSfx (sfx_t *sfx, int inrate, int inwidth, byte *data)
 
 	stepscale = (float)inrate / dma.speed;	// this is usually 0.5, 1, or 2
 
+	inlength = sc->length;
 	outcount = sc->length / stepscale;
 	sc->length = outcount;
 	if (sc->loopstart != -1)
@@ -66,17 +68,38 @@ void ResampleSfx (sfx_t *sfx, int inrate, int inwidth, byte *data)
 	}
 	else
 	{
-// general case
+/* general case: linearly interpolate between the two nearest source samples
+ * instead of point-sampling, so upsampling to a higher output rate produces a
+ * smooth reconstruction rather than zero-order-hold stair-steps. Runs at load
+ * time and is integer-only, so the cached result stays deterministic. */
 		samplefrac = 0;
 		fracstep = stepscale*256;
 		for (i=0 ; i<outcount ; i++)
 		{
+			int frac    = samplefrac & 255;
+			int srcnext;
+			int s0, s1;
+
 			srcsample = samplefrac >> 8;
 			samplefrac += fracstep;
+
+			/* hold the last sample at the tail rather than reading past the
+			 * source (loop points are not interpolated across, as before) */
+			srcnext = (srcsample + 1 < inlength) ? srcsample + 1 : srcsample;
+
 			if (inwidth == 2)
-				sample = LittleShort ( ((short *)data)[srcsample] );
+			{
+				s0 = LittleShort ( ((short *)data)[srcsample] );
+				s1 = LittleShort ( ((short *)data)[srcnext] );
+			}
 			else
-				sample = (int)( (unsigned char)(data[srcsample]) - 128) << 8;
+			{
+				s0 = (int)( (unsigned char)(data[srcsample]) - 128) << 8;
+				s1 = (int)( (unsigned char)(data[srcnext])   - 128) << 8;
+			}
+
+			sample = s0 + (((s1 - s0) * frac) >> 8);
+
 			if (sc->width == 2)
 				((short *)sc->data)[i] = sample;
 			else
