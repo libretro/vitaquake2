@@ -230,6 +230,8 @@ void Master_Packet (void);
 // sv_init.c
 //
 void SV_InitGame (void);
+void SV_ResetSessionLevels (void);
+void SV_NoteLevelWritten (const char *mapname);
 void SV_Map (qboolean attractloop, char *levelstring, qboolean loadgame);
 
 

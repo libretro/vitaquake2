@@ -349,6 +349,11 @@ void SV_WriteLevelFile (void)
 
 	Com_sprintf (name, sizeof(name), "%s/save/current/%s.sav", savedir, sv.name);
 	ge->WriteLevel (name);
+
+	// Record that this level legitimately exists in save/current this session
+	// so SV_CheckForSavegame() will restore it on a backtrack (rather than
+	// treating it as stale leftover from a previous game and discarding it).
+	SV_NoteLevelWritten (sv.name);
 }
 
 /*

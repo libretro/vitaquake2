@@ -25,13 +25,62 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 server_static_t	svs;				// persistant server info
 server_t		sv;					// local server
 
-// Latched by SV_InitGame() ("a brand new game has been started") and consumed
-// by SV_CheckForSavegame(). A brand-new game must spawn fresh and must never
-// restore a leftover save/current level over it (which would revive dead
-// enemies and skip the worldspawn music). This guards the restore decision in
-// memory, independent of whether the on-disk wipe actually removed the files
-// (frontend VFS / host path quirks could leave them behind).
-static qboolean	sv_brandnew_game = false;
+// SV_CheckForSavegame() must only restore a save/current/<map>.sav that
+// legitimately belongs to *this* game session, never a leftover from a
+// previous game. The on-disk wipe at new-game start is supposed to remove the
+// old files, but it cannot be relied on for correctness: a frontend VFS / host
+// path quirk that leaves a file behind would resurrect an entire dead level
+// (every monster already killed) and can drop a restored monster on top of the
+// player's fresh spawn point. So the restore decision is gated in memory:
+//
+//   * sv_current_from_load - the save/current contents came from loading a
+//     savegame, so every level in it is ours to restore.
+//   * sv_session_levels[]  - maps we wrote to save/current this session by
+//     *leaving* them (a real backtrack within a unit). Restoring one of these
+//     is the intended Quake II persistence; restoring anything else is stale.
+//
+// A brand-new game starts with neither set, so its first visit to every level
+// spawns fresh (and deletes the stale file defensively), while genuine
+// backtracking still restores. This also covers reaching the first level
+// through an intro cinematic ("map *ntro.cin+demo1"): the cinematic was never
+// written this session, so it spawns fresh too.
+#define SV_MAX_SESSION_LEVELS	64
+static char		sv_session_levels[SV_MAX_SESSION_LEVELS][MAX_QPATH];
+static int		sv_session_level_count = 0;
+static qboolean	sv_current_from_load   = false;
+
+void SV_ResetSessionLevels (void)
+{
+	sv_session_level_count = 0;
+	sv_current_from_load   = false;
+}
+
+void SV_NoteLevelWritten (const char *mapname)
+{
+	int i;
+
+	for (i = 0; i < sv_session_level_count; i++)
+		if (!strcmp (sv_session_levels[i], mapname))
+			return;
+
+	if (sv_session_level_count < SV_MAX_SESSION_LEVELS)
+	{
+		strncpy (sv_session_levels[sv_session_level_count], mapname, MAX_QPATH - 1);
+		sv_session_levels[sv_session_level_count][MAX_QPATH - 1] = '\0';
+		sv_session_level_count++;
+	}
+}
+
+static qboolean SV_LevelWrittenThisSession (const char *mapname)
+{
+	int i;
+
+	for (i = 0; i < sv_session_level_count; i++)
+		if (!strcmp (sv_session_levels[i], mapname))
+			return true;
+
+	return false;
+}
 
 /*
 ================
@@ -131,17 +180,6 @@ void SV_CheckForSavegame (void)
 	RFILE     *f;
 	int      i;
 	char     *savedir = g_save_dir;
-	qboolean brandnew = sv_brandnew_game;
-
-	/* Only the first real gameplay (ss_game) spawn consumes the brand-new
-	 * latch. A new game can reach its first level *through* an intro
-	 * cinematic (e.g. "map *ntro.cin+demo1"): the ss_cinematic spawn must
-	 * not consume the latch, otherwise the following ss_game spawn would
-	 * restore a stale save/current level over the freshly spawned map. */
-	if (sv.state == ss_game)
-		sv_brandnew_game = false;
-	else
-		brandnew = false;
 
 	if (g_save_dir[0] == '\0')
 		savedir = FS_Gamedir ();
@@ -152,13 +190,24 @@ void SV_CheckForSavegame (void)
 	if (Cvar_VariableValue ("deathmatch"))
 		return;
 
-	// A brand-new game (SV_InitGame ran and this is not a load) must keep the
-	// freshly spawned level. Re-entering a level within a unit does not run
-	// SV_InitGame, so brandnew is false there and the level still restores.
-	if (brandnew && !sv.loadgame)
-		return;
-
 	Com_sprintf (name, sizeof(name), "%s/save/current/%s.sav", savedir, sv.name);
+
+	// Only restore this level if save/current is legitimately ours this
+	// session: a loaded savegame populated it, or we wrote this level on
+	// leaving it (a backtrack within the unit). Anything else is leftover
+	// from a previous game that the new-game wipe failed to remove -
+	// restoring it would revive the whole dead level and could spawn a
+	// monster on top of the player. Delete it so it can never be restored,
+	// then spawn fresh.
+	if (!sv.loadgame && !sv_current_from_load
+		&& !SV_LevelWrittenThisSession (sv.name))
+	{
+		filestream_delete (name);
+		Com_sprintf (name, sizeof(name), "%s/save/current/%s.sv2", savedir, sv.name);
+		filestream_delete (name);
+		return;
+	}
+
 	f = rfopen (name, "rb");
 	if (!f)
 		return;		// no savegame
@@ -324,11 +373,11 @@ void SV_InitGame (void)
 	edict_t	*ent;
 	char	idmaster[32];
 
-	// "A brand new game has been started" - latch it so SV_CheckForSavegame()
-	// won't restore a stale save/current level over the fresh spawn. For a
-	// loadgame this is also set, but SV_CheckForSavegame() honours sv.loadgame
-	// and still restores in that case.
-	sv_brandnew_game = true;
+	// "A brand new game has been started" - reset the per-session level
+	// tracking so SV_CheckForSavegame() treats every level as a fresh first
+	// visit and won't restore a stale save/current level left over from a
+	// previous game over it.
+	SV_ResetSessionLevels ();
 
 	if (svs.initialized)
 	{
@@ -437,6 +486,12 @@ void SV_Map (qboolean attractloop, char *levelstring, qboolean loadgame)
 
 	sv.loadgame = loadgame;
 	sv.attractloop = attractloop;
+
+	// A load populated save/current from the chosen savegame, so every level
+	// in it is legitimate to restore for the rest of this session (until the
+	// next brand-new game resets the tracking via SV_InitGame).
+	if (loadgame)
+		sv_current_from_load = true;
 
 	if (sv.state == ss_dead && !sv.loadgame)
 	{
