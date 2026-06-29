@@ -26,7 +26,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 void S_Play(void);
 void S_SoundList(void);
-void S_Update_();
 void S_StopAllSounds(void);
 
 
@@ -1074,77 +1073,58 @@ void S_Update(vec3_t origin, vec3_t forward, vec3_t right, vec3_t up)
 		Com_Printf ("----(%i)---- painted: %i\n", total, paintedtime);
 	}
 
-// mix some sound
-	S_Update_();
+	// Mixing is driven once per video frame by the libretro audio step
+	// (S_PaintFrame); S_Update only updates spatialization above.
 }
 
-void GetSoundtime(void)
+/*
+==============
+S_PaintFrame
+
+libretro mixes deterministically: exactly one video frame's worth of audio
+(frame_samps stereo sample-pairs) is painted per retro_run, with paintedtime
+as the sole monotonic cursor.  There is no DMA read cursor, no s_mixahead
+look-ahead window and no wall-clock timer, so identical input always yields
+identical output (required for run-ahead, rewind and netplay).  The libretro
+audio step then reads back exactly this region from dma.buffer and hands it
+to audio_batch_cb.
+==============
+*/
+void S_PaintFrame(int frame_samps)
 {
-	int		samplepos;
-	static	int		buffers;
-	static	int		oldsamplepos;
-	int		fullsamples;
-	
-	fullsamples = dma.samples / dma.channels;
+	int		i, idx, ringmask;
 
-// it is possible to miscount buffers if it has wrapped twice between
-// calls to S_Update.  Oh well.
-	samplepos = SNDDMA_GetDMAPos();
+	if (frame_samps <= 0 || !dma.buffer)
+		return;
 
-	if (samplepos < oldsamplepos)
+	ringmask = (dma.samples >> 1) - 1;
+
+	// While sound is stopped or the loading plaque is up, still advance the
+	// cursor but emit silence, so playback stays phase-aligned and we never
+	// replay stale samples.
+	if (!sound_started || cls.disable_screen)
 	{
-		buffers++;					// buffer wrapped
-		
-		if (paintedtime > 0x40000000)
-		{	// time to chop things off to avoid 32 bit limits
-			buffers = 0;
-			paintedtime = fullsamples;
-			S_StopAllSounds ();
+		short	*out = (short *)dma.buffer;
+		for (i = 0 ; i < frame_samps ; i++)
+		{
+			idx = ((paintedtime + i) & ringmask) << 1;
+			out[idx]     = 0;
+			out[idx + 1] = 0;
 		}
+		paintedtime += frame_samps;
+		return;
 	}
-	oldsamplepos = samplepos;
 
-	soundtime = buffers*fullsamples + samplepos/dma.channels;
-}
-
-
-void S_Update_(void)
-{
-	unsigned        endtime;
-	int				samps;
-
-	if (!sound_started)
-		return;
-
-	SNDDMA_BeginPainting ();
-
-	if (!dma.buffer)
-		return;
-
-// Updates DMA time
-	GetSoundtime();
-
-// check to make sure that we haven't overshot
-	if (paintedtime < soundtime)
+	// Guard the monotonic cursor against 32-bit overflow (~13.5h @ 44.1kHz).
+	// Deterministic: triggers at the same frame count on every instance.
+	if (paintedtime > 0x40000000)
 	{
-		Com_DPrintf ("S_Update_ : overflow\n");
-		paintedtime = soundtime;
+		paintedtime = 0;
+		s_rawend    = 0;
+		S_StopAllSounds ();
 	}
 
-// mix ahead of current position
-	endtime = soundtime + s_mixahead->value * dma.speed;
-//endtime = (soundtime + 4096) & ~4095;
-
-	// mix to an even submission block size
-	endtime = (endtime + dma.submission_chunk-1)
-		& ~(dma.submission_chunk-1);
-	samps = dma.samples >> (dma.channels-1);
-	if (endtime - soundtime > samps)
-		endtime = soundtime + samps;
-
-	S_PaintChannels (endtime);
-
-	SNDDMA_Submit ();
+	S_PaintChannels (paintedtime + frame_samps);
 }
 
 /*

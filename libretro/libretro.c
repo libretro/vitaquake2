@@ -2479,45 +2479,45 @@ static int stop_audio = false;
 
 static int16_t audio_buffer[AUDIO_BUFFER_SIZE];
 static int16_t audio_out_buffer[AUDIO_BUFFER_SIZE];
-static unsigned audio_buffer_ptr = 0;
 
 static unsigned audio_batch_frames_max = AUDIO_BUFFER_SIZE >> 1;
 
 static void audio_callback(void)
 {
-   unsigned read_first;
-   unsigned read_second;
-   unsigned samples_per_frame      = (2 * AUDIO_SAMPLE_RATE) / framerate;
-   unsigned audio_frames_remaining = samples_per_frame >> 1;
-   unsigned read_end               = audio_buffer_ptr + samples_per_frame;
+   /* Deterministic, frame-locked mixing: paint exactly one video frame's
+    * worth of audio (frame_samps stereo pairs) and submit it.  No DMA read
+    * cursor, no mix-ahead window, no wall-clock -- identical input yields
+    * identical output (run-ahead / rewind / netplay safe). */
+   unsigned frame_samps            = AUDIO_SAMPLE_RATE / framerate; /* stereo pairs */
+   unsigned ringmask               = (AUDIO_BUFFER_SIZE >> 1) - 1;  /* ring is in pairs */
+   unsigned audio_frames_remaining = frame_samps;
    int16_t *audio_out_ptr          = audio_out_buffer;
-   uintptr_t i;
+   unsigned i;
 
-   if (read_end > AUDIO_BUFFER_SIZE)
-      read_end = AUDIO_BUFFER_SIZE;
-
-   read_first  = read_end - audio_buffer_ptr;
-   read_second = samples_per_frame - read_first;
-
-   for (i = 0; i < read_first; i++)
-      *(audio_out_ptr++) = *(audio_buffer + audio_buffer_ptr + i);
-
-   audio_buffer_ptr += read_first;
-
-   if (read_second >= 1)
+   if (!sound_initialized || stop_audio)
+      memset(audio_out_buffer, 0, (frame_samps << 1) * sizeof(int16_t));
+   else
    {
-      for (i = 0; i < read_second; i++)
-         *(audio_out_ptr++) = *(audio_buffer + i);
+      unsigned prev = (unsigned)paintedtime;
 
-      audio_buffer_ptr = read_second;
+      /* Engine paints frame_samps pairs into dma.buffer (== audio_buffer)
+       * starting at paintedtime, advancing paintedtime by frame_samps. */
+      S_PaintFrame((int)frame_samps);
+
+      /* Read back exactly the region just painted.  The ring index mirrors
+       * S_TransferStereo16: pair p lives at (p & ringmask) << 1. */
+      for (i = 0; i < frame_samps; i++)
+      {
+         unsigned idx = ((prev + i) & ringmask) << 1;
+         *(audio_out_ptr++) = audio_buffer[idx];
+         *(audio_out_ptr++) = audio_buffer[idx + 1];
+      }
    }
 
-   CDAudio_Mix(audio_out_buffer, samples_per_frame >> 1, cdaudio_volume);
+   CDAudio_Mix(audio_out_buffer, frame_samps, cdaudio_volume);
 
-   /* At 30 fps, we generate (2 * 1470) samples
-    * per frame. This may exceed the capacity of
-    * the frontend audio batch callback; if so,
-    * write the audio samples in chunks */
+   /* At low framerates one frame can exceed the frontend's batch capacity,
+    * so submit in chunks. */
    audio_out_ptr = audio_out_buffer;
    do
    {
@@ -2537,7 +2537,6 @@ static void audio_callback(void)
    while (audio_frames_remaining > 0);
 }
 
-uint64_t initial_tick;
 
 qboolean SNDDMA_Init(void)
 {
@@ -2556,23 +2555,20 @@ qboolean SNDDMA_Init(void)
    dma.submission_chunk = 1;
    dma.buffer           = (byte *)audio_buffer;
 
-   /* Reset the ring read cursor and clear stale samples so a re-load does
-    * not start mid-buffer or play back the previous session's audio. */
-   audio_buffer_ptr     = 0;
+   /* Clear stale samples so a re-load does not play back the previous
+    * session's audio. */
    memset(audio_buffer, 0, sizeof(audio_buffer));
 
    sound_initialized    = 1;
-
-   initial_tick         = cpu_features_get_time_usec();
 
    return true;
 }
 
 int SNDDMA_GetDMAPos(void)
 {
-   if(!sound_initialized)
-      return 0;
-   return dma.samplepos = audio_buffer_ptr;
+   /* Unused under deterministic frame-locked mixing; kept for API
+    * compatibility. */
+   return 0;
 }
 
 void SNDDMA_Shutdown(void)
