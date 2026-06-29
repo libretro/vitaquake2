@@ -2706,7 +2706,8 @@ void SNDDMA_BeginPainting(void)
 
 /* vid.c */
 
-#define REF_OPENGL  0
+#define REF_SOFTWARE 0
+#define REF_OPENGL   1
 
 cvar_t *vid_ref;
 cvar_t *vid_fullscreen;
@@ -2846,8 +2847,21 @@ qboolean VID_GetModeInfo( int *width, int *height, int mode )
    return true;
 }
 
-static void NullCallback( void *unused )
+/* The video menu's "driver" spinner mirrors the vitaquakeii_renderer core
+ * option. Changing it here writes the option value straight back to the
+ * frontend so the two always agree; the frontend reflects the new value
+ * immediately (and the actual software/OpenGL switch takes effect on the
+ * next core load, as it does when the option is changed directly). */
+static void DriverCallback( void *unused )
 {
+#ifdef HAVE_OPENGL
+   struct retro_variable var;
+
+   var.key   = "vitaquakeii_renderer";
+   var.value = (s_ref_list.curvalue == REF_SOFTWARE) ? "software" : "opengl";
+
+   environ_cb(RETRO_ENVIRONMENT_SET_VARIABLE, &var);
+#endif
 }
 
 static void ApplyChanges( void *unused )
@@ -2920,7 +2934,12 @@ void    VID_MenuInit (void)
 {
    static const char *refs[] =
    {
-      "openGL",
+#ifdef HAVE_OPENGL
+      "software",
+      "opengl",
+#else
+      "software",
+#endif
       0
    };
 
@@ -2937,7 +2956,26 @@ void    VID_MenuInit (void)
    s_mode_list.curvalue = (s_mode_list.curvalue < 0) ? 8 : s_mode_list.curvalue;
    Cvar_SetValue( "gl_mode", s_mode_list.curvalue );
 
-   s_ref_list.curvalue = REF_OPENGL;
+   /* Reflect whatever vitaquakeii_renderer is currently set to in the
+    * frontend, so the menu and the core option always agree (rather than
+    * always showing OpenGL). Fall back to the live renderer state if the
+    * option can't be read. */
+#ifdef HAVE_OPENGL
+   {
+      struct retro_variable var;
+
+      var.key   = "vitaquakeii_renderer";
+      var.value = NULL;
+
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+         s_ref_list.curvalue = (strcmp(var.value, "software") == 0)
+            ? REF_SOFTWARE : REF_OPENGL;
+      else
+         s_ref_list.curvalue = enable_opengl ? REF_OPENGL : REF_SOFTWARE;
+   }
+#else
+   s_ref_list.curvalue = REF_SOFTWARE;
+#endif
    s_opengl_menu.x = viddef.width * 0.50;
    s_opengl_menu.nitems = 0;
 
@@ -2945,7 +2983,7 @@ void    VID_MenuInit (void)
    s_ref_list.generic.name = "driver";
    s_ref_list.generic.x = 0;
    s_ref_list.generic.y = 0;
-   s_ref_list.generic.callback = NullCallback;
+   s_ref_list.generic.callback = DriverCallback;
    s_ref_list.itemnames = refs;
 
    s_cancel_action.generic.type = MTYPE_ACTION;
