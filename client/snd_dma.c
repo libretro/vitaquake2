@@ -908,20 +908,28 @@ void S_RawSamples (int samples, int rate, int width, int channels, byte *data)
 {
 	int		i;
 	int		src, dst;
-	float	scale;
+	unsigned	fracstep, samplefrac;
 
 	if (!sound_started)
 		return;
 
 	if (s_rawend < paintedtime)
 		s_rawend = paintedtime;
-	scale = (float)rate / dma.speed;
 
-//Com_Printf ("%i < %i < %i\n", soundtime, paintedtime, s_rawend);
+	/* 16.16 fixed-point resample step; integer so the streamed samples that
+	 * feed the deterministic mixer stay deterministic. Linearly interpolate
+	 * between the two nearest source samples instead of point-sampling, so a
+	 * higher output rate reconstructs this (full-bandwidth) movie/stream audio
+	 * smoothly rather than imaging the zero-order-hold steps. Raw samples are
+	 * interpolated before the output shift to keep the arithmetic in range. */
+	fracstep = (unsigned)(((uint64_t)rate << 16) / (unsigned)dma.speed);
+	if (!fracstep)
+		fracstep = 1;
+
 	if (channels == 2 && width == 2)
 	{
-		if (scale == 1.0)
-		{	// optimized case
+		if (fracstep == (1u << 16))
+		{	/* optimized 1:1 case */
 			for (i=0 ; i<samples ; i++)
 			{
 				dst = s_rawend&(MAX_RAW_SAMPLES-1);
@@ -934,62 +942,73 @@ void S_RawSamples (int samples, int rate, int width, int channels, byte *data)
 		}
 		else
 		{
-			for (i=0 ; ; i++)
+			for (samplefrac=0 ; (int)(samplefrac>>16) < samples ; samplefrac += fracstep)
 			{
-				src = i*scale;
-				if (src >= samples)
-					break;
+				int frac = (samplefrac >> 8) & 255;
+				int n, l0, l1, r0, r1;
+				src = samplefrac >> 16;
+				n   = (src + 1 < samples) ? src + 1 : src;
 				dst = s_rawend&(MAX_RAW_SAMPLES-1);
 				s_rawend++;
-				s_rawsamples[dst].left =
-				    LittleShort(((short *)data)[src*2]) << 8;
-				s_rawsamples[dst].right =
-				    LittleShort(((short *)data)[src*2+1]) << 8;
+				l0 = LittleShort(((short *)data)[src*2]);
+				l1 = LittleShort(((short *)data)[n*2]);
+				r0 = LittleShort(((short *)data)[src*2+1]);
+				r1 = LittleShort(((short *)data)[n*2+1]);
+				s_rawsamples[dst].left  = (l0 + (((l1-l0)*frac)>>8)) << 8;
+				s_rawsamples[dst].right = (r0 + (((r1-r0)*frac)>>8)) << 8;
 			}
 		}
 	}
 	else if (channels == 1 && width == 2)
 	{
-		for (i=0 ; ; i++)
+		for (samplefrac=0 ; (int)(samplefrac>>16) < samples ; samplefrac += fracstep)
 		{
-			src = i*scale;
-			if (src >= samples)
-				break;
+			int frac = (samplefrac >> 8) & 255;
+			int n, s0, s1, v;
+			src = samplefrac >> 16;
+			n   = (src + 1 < samples) ? src + 1 : src;
 			dst = s_rawend&(MAX_RAW_SAMPLES-1);
 			s_rawend++;
-			s_rawsamples[dst].left =
-			    LittleShort(((short *)data)[src]) << 8;
-			s_rawsamples[dst].right =
-			    LittleShort(((short *)data)[src]) << 8;
+			s0 = LittleShort(((short *)data)[src]);
+			s1 = LittleShort(((short *)data)[n]);
+			v  = (s0 + (((s1-s0)*frac)>>8)) << 8;
+			s_rawsamples[dst].left  = v;
+			s_rawsamples[dst].right = v;
 		}
 	}
 	else if (channels == 2 && width == 1)
 	{
-		for (i=0 ; ; i++)
+		for (samplefrac=0 ; (int)(samplefrac>>16) < samples ; samplefrac += fracstep)
 		{
-			src = i*scale;
-			if (src >= samples)
-				break;
+			int frac = (samplefrac >> 8) & 255;
+			int n, l0, l1, r0, r1;
+			src = samplefrac >> 16;
+			n   = (src + 1 < samples) ? src + 1 : src;
 			dst = s_rawend&(MAX_RAW_SAMPLES-1);
 			s_rawend++;
-			s_rawsamples[dst].left =
-			    ((char *)data)[src*2] << 16;
-			s_rawsamples[dst].right =
-			    ((char *)data)[src*2+1] << 16;
+			l0 = ((char *)data)[src*2];
+			l1 = ((char *)data)[n*2];
+			r0 = ((char *)data)[src*2+1];
+			r1 = ((char *)data)[n*2+1];
+			s_rawsamples[dst].left  = (l0 + (((l1-l0)*frac)>>8)) << 16;
+			s_rawsamples[dst].right = (r0 + (((r1-r0)*frac)>>8)) << 16;
 		}
 	}
 	else if (channels == 1 && width == 1)
 	{
-		for (i=0 ; ; i++)
+		for (samplefrac=0 ; (int)(samplefrac>>16) < samples ; samplefrac += fracstep)
 		{
-			src = i*scale;
-			if (src >= samples)
-				break;
+			int frac = (samplefrac >> 8) & 255;
+			int n, s0, s1, v;
+			src = samplefrac >> 16;
+			n   = (src + 1 < samples) ? src + 1 : src;
 			dst = s_rawend&(MAX_RAW_SAMPLES-1);
 			s_rawend++;
-			s_rawsamples[dst].left =
-			    (((byte *)data)[src]-128) << 16;
-			s_rawsamples[dst].right = (((byte *)data)[src]-128) << 16;
+			s0 = ((byte *)data)[src] - 128;
+			s1 = ((byte *)data)[n] - 128;
+			v  = (s0 + (((s1-s0)*frac)>>8)) << 16;
+			s_rawsamples[dst].left  = v;
+			s_rawsamples[dst].right = v;
 		}
 	}
 }
