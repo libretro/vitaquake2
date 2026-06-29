@@ -763,6 +763,11 @@ static int  hunkmaxsize = 0;
 static int  cursize     = 0;
 
 bool shutdown_core = false;
+/* True only while retro_deinit() is tearing the engine down. Sys_Quit()
+ * (reached via CL_Quit_f -> Com_Quit) must not ask the frontend to shut down
+ * in that case: the frontend is already unloading us, and firing
+ * RETRO_ENVIRONMENT_SHUTDOWN re-entrantly during Close Content can crash it. */
+static bool in_retro_deinit = false;
 
 netadr_t	net_local_adr;
 
@@ -964,7 +969,11 @@ void Sys_Error (char *error, ...)
 void Sys_Quit (void)
 {
    LOG_FILE("Sys_Quit called");
-   environ_cb(RETRO_ENVIRONMENT_SHUTDOWN, NULL);
+   /* Only request a frontend shutdown for an engine-initiated quit (from
+    * retro_run). During retro_deinit the frontend is already unloading us,
+    * so re-requesting a shutdown is both wrong and can crash Close Content. */
+   if (!in_retro_deinit)
+      environ_cb(RETRO_ENVIRONMENT_SHUTDOWN, NULL);
    shutdown_core = true;
 }
 
@@ -1942,6 +1951,7 @@ void retro_init(void)
    size_t i;
 
    shutdown_core = false;
+   in_retro_deinit = false;
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_INPUT_BITMASKS, NULL))
       libretro_supports_bitmasks = true;
@@ -1953,6 +1963,8 @@ void retro_init(void)
 
 void retro_deinit(void)
 {
+   in_retro_deinit = true;
+
    if (!shutdown_core)
       CL_Quit_f();
 
