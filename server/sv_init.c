@@ -131,9 +131,17 @@ void SV_CheckForSavegame (void)
 	RFILE     *f;
 	int      i;
 	char     *savedir = g_save_dir;
-	qboolean brandnew = sv_brandnew_game;	// consume the brand-new-game latch
+	qboolean brandnew = sv_brandnew_game;
 
-	sv_brandnew_game = false;
+	/* Only the first real gameplay (ss_game) spawn consumes the brand-new
+	 * latch. A new game can reach its first level *through* an intro
+	 * cinematic (e.g. "map *ntro.cin+demo1"): the ss_cinematic spawn must
+	 * not consume the latch, otherwise the following ss_game spawn would
+	 * restore a stale save/current level over the freshly spawned map. */
+	if (sv.state == ss_game)
+		sv_brandnew_game = false;
+	else
+		brandnew = false;
 
 	if (g_save_dir[0] == '\0')
 		savedir = FS_Gamedir ();
