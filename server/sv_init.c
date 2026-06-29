@@ -25,6 +25,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 server_static_t	svs;				// persistant server info
 server_t		sv;					// local server
 
+// Latched by SV_InitGame() ("a brand new game has been started") and consumed
+// by SV_CheckForSavegame(). A brand-new game must spawn fresh and must never
+// restore a leftover save/current level over it (which would revive dead
+// enemies and skip the worldspawn music). This guards the restore decision in
+// memory, independent of whether the on-disk wipe actually removed the files
+// (frontend VFS / host path quirks could leave them behind).
+static qboolean	sv_brandnew_game = false;
+
 /*
 ================
 SV_FindIndex
@@ -123,6 +131,9 @@ void SV_CheckForSavegame (void)
 	RFILE     *f;
 	int      i;
 	char     *savedir = g_save_dir;
+	qboolean brandnew = sv_brandnew_game;	// consume the brand-new-game latch
+
+	sv_brandnew_game = false;
 
 	if (g_save_dir[0] == '\0')
 		savedir = FS_Gamedir ();
@@ -131,6 +142,12 @@ void SV_CheckForSavegame (void)
 		return;
 
 	if (Cvar_VariableValue ("deathmatch"))
+		return;
+
+	// A brand-new game (SV_InitGame ran and this is not a load) must keep the
+	// freshly spawned level. Re-entering a level within a unit does not run
+	// SV_InitGame, so brandnew is false there and the level still restores.
+	if (brandnew && !sv.loadgame)
 		return;
 
 	Com_sprintf (name, sizeof(name), "%s/save/current/%s.sav", savedir, sv.name);
@@ -298,6 +315,12 @@ void SV_InitGame (void)
 	int		i;
 	edict_t	*ent;
 	char	idmaster[32];
+
+	// "A brand new game has been started" - latch it so SV_CheckForSavegame()
+	// won't restore a stale save/current level over the fresh spawn. For a
+	// loadgame this is also set, but SV_CheckForSavegame() honours sv.loadgame
+	// and still restores in that case.
+	sv_brandnew_game = true;
 
 	if (svs.initialized)
 	{
