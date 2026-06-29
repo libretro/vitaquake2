@@ -289,7 +289,10 @@ extern unsigned	r_rawpalette[256];
 
 void Draw_StretchRaw (int x, int y, int w, int h, int cols, int rows, byte *data)
 {
-	unsigned	image32[320*240];
+	/* 300 KiB of scratch: keep it off the stack, which is small on consoles
+	 * such as the Switch and 3DS. The renderer is single-threaded, so a
+	 * file-scope buffer is safe and is fully rewritten before use here. */
+	static unsigned	image32[320*240];
 	int			i, j, trows;
 	byte		*source;
 	int			frac, fracstep;
