@@ -237,7 +237,9 @@ void CopyFile (char *src, char *dst)
 {
 	RFILE	*f1, *f2;
 	int		l;
-	byte	buffer[65536];
+	/* 64 KiB copy buffer: keep it off the stack for low-stack consoles.
+	 * The server is single-threaded and CopyFile is not re-entrant. */
+	static byte	buffer[65536];
 
 	Com_DPrintf ("CopyFile (%s, %s)\n", src, dst);
 
