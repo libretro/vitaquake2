@@ -788,6 +788,19 @@ void Key_Event (int key, qboolean down, unsigned time)
 		return;
 	}
 
+	/* TAB is a second hardcoded console toggle, but only in-game or while the
+	 * console is already open, so menu navigation and message entry keep using
+	 * TAB normally. This takes over TAB's default inventory bind and its
+	 * in-console command completion. */
+	if (key == K_TAB
+		&& (cls.key_dest == key_game || cls.key_dest == key_console))
+	{
+		if (!down)
+			return;
+		Con_ToggleConsole_f ();
+		return;
+	}
+
 	// any key during the attract mode will bring up the menu
 	if (cl.attractloop && cls.key_dest != key_menu)
 		key = K_ESCAPE;
