@@ -64,7 +64,6 @@ static bool libretro_can_dupe = false;
 static bool sw_have_presented = false;
 
 bool cdaudio_enabled = true;
-float cdaudio_volume = 0.5f;
 
 float libretro_gamma = 1.0f;
 float libretro_hud_scale = 0.5f;
@@ -1818,21 +1817,6 @@ static void update_variables(bool startup)
    if (!cdaudio_enabled && CDAudio_Playing())
       CDAudio_Stop();
 
-   var.key = "vitaquakeii_cdaudio_volume";
-   var.value = NULL;
-   cdaudio_volume = 0.5f;
-
-   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-   {
-      float volume_level = atof(var.value);
-
-      if (volume_level < 5.0f)
-         volume_level = 5.0f;
-      if (volume_level > 130.0f)
-         volume_level = 130.0f;
-
-      cdaudio_volume = volume_level / 100.0f;
-   }
 #endif
 
    /* We need Qcommon_Init to be executed to be able to set Cvars */
@@ -2578,6 +2562,11 @@ void retro_cheat_set(unsigned index, bool enabled, const char *code)
 #include "../client/snd_loc.h"
 
 static volatile int sound_initialized = 0;
+
+/* Music (OGG) playback volume, 0.0..1.0. Driven by the "music volume" slider
+ * in the Options menu (cd_volume cvar) rather than a core option, and read
+ * live by the mixer below. */
+static cvar_t *cd_volume = NULL;
 static int stop_audio = false;
 
 static int16_t audio_buffer[AUDIO_BUFFER_SIZE];
@@ -2625,7 +2614,7 @@ static void audio_callback(void)
          }
       }
 
-      CDAudio_MixF(audio_out_buffer_f, frame_samps, cdaudio_volume);
+      CDAudio_MixF(audio_out_buffer_f, frame_samps, cd_volume ? cd_volume->value : 0.5f);
 
       p_f = audio_out_buffer_f;
       do
@@ -2665,7 +2654,7 @@ static void audio_callback(void)
       }
    }
 
-   CDAudio_Mix(audio_out_buffer, frame_samps, cdaudio_volume);
+   CDAudio_Mix(audio_out_buffer, frame_samps, cd_volume ? cd_volume->value : 0.5f);
 
    /* At low framerates one frame can exceed the frontend's batch capacity,
     * so submit in chunks. */
@@ -2704,6 +2693,10 @@ qboolean SNDDMA_Init(void)
    dma.samplepos        = 0;
    dma.submission_chunk = 1;
    dma.buffer           = (byte *)audio_buffer;
+
+   /* Persisted music volume, set from the "music volume" Options-menu slider.
+    * 0.0..1.0; default 50%. */
+   cd_volume            = Cvar_Get("cd_volume", "0.5", CVAR_ARCHIVE);
 
    /* Float output ring (used only when float output was negotiated). Hand the
     * engine its pointer and clear it; s_float_output is (re)asserted from the
