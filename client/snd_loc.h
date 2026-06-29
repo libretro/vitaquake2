@@ -156,6 +156,7 @@ void S_IssuePlaysound (playsound_t *ps);
 
 void S_PaintChannels(int endtime);
 void S_PaintFrame(int frame_samps);
+int S_SoftClip(int v);
 
 // picks a channel based on priorities, empty slots, number of channels
 channel_t *S_PickChannel(int entnum, int entchannel);

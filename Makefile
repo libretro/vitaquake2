@@ -293,7 +293,7 @@ CFLAGS   += -DHAVE_OPENGL
 endif
 
 ifeq ($(HAVE_CDAUDIO),1)
-CFLAGS   += -DHAVE_CDAUDIO -DHAVE_STB_VORBIS
+CFLAGS   += -DHAVE_CDAUDIO
 endif
 
 ifeq ($(basegame),xatrix)

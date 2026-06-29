@@ -48,7 +48,7 @@ float, so it stays deterministic for run-ahead / netplay) and adds no latency.
 #define S_SOFTCLIP_END  40958
 #define S_SOFTCLIP_DEN  32764
 
-static int S_SoftClip (int v)
+int S_SoftClip (int v)
 {
 	int	d;
 
