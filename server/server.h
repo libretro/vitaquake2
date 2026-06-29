@@ -269,6 +269,7 @@ void SV_ExecuteClientMessage (client_t *cl);
 // sv_ccmds.c
 //
 void SV_ReadLevelFile (void);
+void SV_WipeSavegame (char *savename);
 void SV_Status_f (void);
 
 //

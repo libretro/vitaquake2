@@ -408,7 +408,15 @@ void SV_Map (qboolean attractloop, char *levelstring, qboolean loadgame)
 	sv.attractloop = attractloop;
 
 	if (sv.state == ss_dead && !sv.loadgame)
+	{
+		/* A brand-new game is starting (not a load, not an in-unit	*/
+		/* level change). Wipe any leftover "current" persistent		*/
+		/* level state so SV_CheckForSavegame() can't restore it over	*/
+		/* the freshly spawned map (which would resurrect dead enemies	*/
+		/* and skip the worldspawn CD-track trigger).					*/
+		SV_WipeSavegame ("current");
 		SV_InitGame ();	// the game is just starting
+	}
 
 	strcpy (level, levelstring);
 
