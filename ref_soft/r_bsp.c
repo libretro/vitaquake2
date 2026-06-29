@@ -340,8 +340,12 @@ void R_DrawSolidClippedSubmodelPolygons (model_t *pmodel, mnode_t *topnode)
 	msurface_t	*psurf;
 	int			numsurfaces;
 	mplane_t	*pplane;
-	mvertex_t	bverts[MAX_BMODEL_VERTS];
-	bedge_t		bedges[MAX_BMODEL_EDGES], *pbedge;
+	/* ~30 KiB of bmodel clip scratch: keep it off the stack for low-stack
+	 * consoles. Submodels are processed sequentially (non-recursive) in this
+	 * single-threaded renderer. */
+	static mvertex_t	bverts[MAX_BMODEL_VERTS];
+	static bedge_t		bedges[MAX_BMODEL_EDGES];
+	bedge_t		*pbedge;
 	medge_t		*pedge, *pedges;
 
 // FIXME: use bounding-box-based frustum clipping info?

@@ -886,9 +886,15 @@ R_EdgeDrawing
 */
 void R_EdgeDrawing (void)
 {
-	edge_t	ledges[NUMSTACKEDGES +
+	/* The edge and surface pools (~200 KiB) are cache-aligned in place and
+	 * were kept on the stack as a per-frame fast path. That overflows the
+	 * small stacks on low-stack consoles (Switch, 3DS), where the software
+	 * renderer is the primary path. Move them to file scope; the renderer is
+	 * single-threaded and the auxedges / r_surfsonstack overflow logic is
+	 * unaffected by where the pool lives. */
+	static edge_t	ledges[NUMSTACKEDGES +
 				((CACHE_SIZE - 1) / sizeof(edge_t)) + 1];
-	surf_t	lsurfs[NUMSTACKSURFACES +
+	static surf_t	lsurfs[NUMSTACKSURFACES +
 				((CACHE_SIZE - 1) / sizeof(surf_t)) + 1];
 
 	if ( r_refsoft_newrefdef.rdflags & RDF_NOWORLDMODEL )

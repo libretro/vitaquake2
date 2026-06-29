@@ -203,7 +203,10 @@ R_DrawTriangle
 */
 void R_DrawTriangle( void )
 {
-	spanpackage_t spans[DPS_MAXSPANS];
+	/* ~58 KiB span scratch: keep it off the stack for low-stack consoles.
+	 * R_DrawTriangle is a non-recursive leaf rasterizer in this
+	 * single-threaded renderer, so a file-scope buffer is safe. */
+	static spanpackage_t spans[DPS_MAXSPANS];
 
 	int dv1_ab, dv0_ac;
 	int dv0_ab, dv1_ac;

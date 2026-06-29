@@ -239,7 +239,9 @@ void R_AliasPreparePoints (void)
 	dstvert_t	*pstverts;
 	dtriangle_t	*ptri;
 	finalvert_t	*pfv[3];
-	finalvert_t	finalverts[MAXALIASVERTS +
+	/* ~78 KiB cache-aligned vertex pool: keep it off the stack for low-stack
+	 * consoles. Single-threaded, fully rewritten before use. */
+	static finalvert_t	finalverts[MAXALIASVERTS +
 						((CACHE_SIZE - 1) / sizeof(finalvert_t)) + 3];
 	finalvert_t	*pfinalverts;
 
