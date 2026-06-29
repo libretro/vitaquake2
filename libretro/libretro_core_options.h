@@ -414,20 +414,6 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "cross"
    },
    {
-      "vitaquakeii_fps",
-      "Show FPS",
-      NULL,
-      "Enable an internal framerate counter (indicator is shown at the top right corner of the screen).",
-      NULL,
-      NULL,
-      {
-         { "disabled", NULL },
-         { "enabled",  NULL },
-         { NULL, NULL },
-      },
-      "disabled"
-   },
-   {
       "vitaquakeii_cin_force43",
       "Force 4:3 for Cinematics",
       NULL,

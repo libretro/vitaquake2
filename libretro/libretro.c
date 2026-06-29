@@ -1903,17 +1903,6 @@ static void update_variables(bool startup)
             Cvar_SetValue( "crosshair", 1 );
       }
 
-      var.key = "vitaquakeii_fps";
-      var.value = NULL;
-
-      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-      {
-         if (strcmp(var.value, "disabled") == 0)
-            Cvar_SetValue( "cl_drawfps", 0 );
-         else
-            Cvar_SetValue( "cl_drawfps", 1 );
-      }
-
 #ifdef HAVE_OPENGL
       var.key = "vitaquakeii_gl_shadows";
       var.value = NULL;

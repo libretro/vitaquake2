@@ -58,7 +58,6 @@ cvar_t		*scr_graphheight;
 cvar_t		*scr_graphscale;
 cvar_t		*scr_graphshift;
 cvar_t		*scr_drawall;
-cvar_t		*cl_drawfps;
 
 typedef struct
 {
@@ -422,7 +421,6 @@ void SCR_Init (void)
 	scr_graphscale = Cvar_Get ("graphscale", "1", 0);
 	scr_graphshift = Cvar_Get ("graphshift", "0", 0);
 	scr_drawall = Cvar_Get ("scr_drawall", "0", 0);
-	cl_drawfps = Cvar_Get ("cl_drawfps", "0", CVAR_ARCHIVE);
 	
 //
 // register our commands
@@ -1271,30 +1269,6 @@ void SCR_DrawLayout (void)
 //=======================================================
 
 /*
-==============
-SCR_DrawFps
-==============
-*/
-int	fpscounter; // integer so we can check the last time the fps is updated
-char	temp[32]; // temporary char where we store our fps string
-
-void SCR_DrawFps(void)
-{
-	float scale = SCR_GetMenuScale();
-	
-	if ((cl.time + 1000) < fpscounter)
-		fpscounter = cl.time + 1000;
-
-	if (cl.time > fpscounter)
-	{
-		Com_sprintf(temp, sizeof(temp),"%3.0f FPS", 1/cls.frametime);
-		fpscounter = cl.time + 1000;
-	}
-
-	DrawString(viddef.width - 64 * scale, 0 , temp);
-}
-
-/*
 ==================
 SCR_UpdateScreen
 
@@ -1434,11 +1408,6 @@ void SCR_UpdateScreen (void)
 			M_Draw ();
 
 			SCR_DrawLoading ();
-			
-			if(cl_drawfps->value)
-			{
-				SCR_DrawFps();
-			}
 			
 		}
 	}
