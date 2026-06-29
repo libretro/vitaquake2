@@ -388,8 +388,7 @@ MAIN MENU
 
 =======================================================================
 */
-//#define	MAIN_ITEMS	5
-#define	MAIN_ITEMS	2
+#define	MAIN_ITEMS	5
 
 void M_Main_Draw (void)
 {
@@ -401,15 +400,12 @@ void M_Main_Draw (void)
 	int totalheight = 0;
 	char litname[80];
 	float scale = SCR_GetMenuScale();
-	/* multiplayer, options and video menus
-	 * have no purpose when using the libretro
-	 * core build */
 	char *names[] =
 	{
 		"m_main_game",
-		//"m_main_multiplayer",
-		//"m_main_options",
-		//"m_main_video",
+		"m_main_multiplayer",
+		"m_main_options",
+		"m_main_video",
 		"m_main_quit",
 		0
 	};
@@ -472,34 +468,23 @@ const char *M_Main_Key (int key)
 
 		switch (m_main_cursor)
 		{
-		/* multiplayer, options and video menus
-		 * have no purpose when using the libretro
-		 * core build */
-		//case 0:
-			//M_Menu_Game_f ();
-			//break;
-
-		//case 1:
-			//M_Menu_Multiplayer_f();
-			//break;
-
-		//case 2:
-			//M_Menu_Options_f ();
-			//break;
-
-		//case 3:
-			//M_Menu_Video_f ();
-			//break;
-
-		//case 4:
-			//M_Menu_Quit_f ();
-			//break;
-
 		case 0:
 			M_Menu_Game_f ();
 			break;
 
 		case 1:
+			M_Menu_Multiplayer_f ();
+			break;
+
+		case 2:
+			M_Menu_Options_f ();
+			break;
+
+		case 3:
+			M_Menu_Video_f ();
+			break;
+
+		case 4:
 			M_Menu_Quit_f ();
 			break;
 		}
