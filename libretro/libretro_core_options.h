@@ -427,6 +427,23 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       },
       "enabled"
    },
+   {
+      "vitaquakeii_sound_samplerate",
+      "Sound Samplerate (Hint)",
+      NULL,
+      "Audio output rate. The engine mixes sound effects and the music stream directly at the chosen rate, so higher rates lower latency, push aliasing above the audible range, avoid the frontend resampler's low-pass smearing, and give the resamplers finer time resolution. 'Auto' queries the frontend's target rate and snaps to the nearest supported value. A core restart is required for a change to take effect.",
+      NULL,
+      NULL,
+      {
+         { "auto",  "Auto" },
+         { "32000", "32 kHz" },
+         { "44100", "44 kHz" },
+         { "48000", "48 kHz" },
+         { "96000", "96 kHz" },
+         { NULL, NULL },
+      },
+      "auto"
+   },
 #if defined(HAVE_CDAUDIO)
    {
       "vitaquakeii_cdaudio_enabled",

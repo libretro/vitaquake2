@@ -19,6 +19,9 @@
 #if defined(HAVE_CDAUDIO)
 extern char g_music_dir[1024];
 extern bool cdaudio_enabled;
+/* Output sample rate in force this session (resolved in libretro.c from the
+ * "Sound Samplerate (Hint)" core option); the OGG stream is resampled to it. */
+extern int audio_sample_rate;
 
 /* Shared soft clipper from the SFX mixer (client/snd_mix.c). */
 extern int S_SoftClip(int v);
@@ -232,10 +235,10 @@ void CDAudio_Play(int track, qboolean looping)
 
    vi          = ov_info(&cd_vf, -1);
    cd_channels = (vi && vi->channels > 0) ? vi->channels : 2;
-   rate        = (vi && vi->rate    > 0) ? vi->rate : AUDIO_SAMPLE_RATE;
+   rate        = (vi && vi->rate    > 0) ? vi->rate : audio_sample_rate;
 
    /* 16.16 resample step, clamped to keep the interpolation arithmetic sane */
-   step    = ((uint64_t)rate << 16) / AUDIO_SAMPLE_RATE;
+   step    = ((uint64_t)rate << 16) / audio_sample_rate;
    cd_step = (step == 0) ? 1u :
              (step > 0x00400000u ? 0x00400000u : (uint32_t)step);
 

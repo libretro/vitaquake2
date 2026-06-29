@@ -29,7 +29,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  * > (2 * 44100) / 30 = 2490 total samples
  * > buffer size must be a power of 2
  * > Nearest power of 2 to 2490 is 4096 */
-#define AUDIO_BUFFER_SIZE  4096
+/* Sized so a single frame's worth of stereo audio fits even at the highest
+ * selectable output rate (96 kHz) and the lowest framerate (30): 96000/30 =
+ * 3200 stereo pairs = 6400 samples. Must stay a power of two: it doubles as
+ * the ring length and (AUDIO_BUFFER_SIZE >> 1) is used as a pairs ring mask. */
+#define AUDIO_BUFFER_SIZE  8192
 
 int  CDAudio_Init(void);
 void CDAudio_Shutdown(void);

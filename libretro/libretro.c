@@ -88,6 +88,12 @@ extern int m_menudepth;
 int      framerate    = 60;
 unsigned framerate_ms = 16;
 
+/* Output sample rate actually in force this session, resolved from the
+ * "Sound Samplerate (Hint)" core option (see update_audio_samplerate).
+ * Drives info.timing.sample_rate, dma.speed, s_khz, the per-frame sample
+ * count and the OGG music resampler. Defaults to the historical fixed rate. */
+int      audio_sample_rate = AUDIO_SAMPLE_RATE;
+
 float *gVertexBuffer;
 float *gColorBuffer;
 float *gTexCoordBuffer;
@@ -1531,6 +1537,56 @@ static unsigned sanitise_framerate(float target)
 }
 
 bool initial_resolution_set = false;
+
+/* The GET_TARGET_SAMPLE_RATE environment call may be absent from older
+ * libretro.h headers; define it defensively so the build never depends on the
+ * synced header carrying it. */
+#ifndef RETRO_ENVIRONMENT_GET_TARGET_SAMPLE_RATE
+#define RETRO_ENVIRONMENT_GET_TARGET_SAMPLE_RATE (81 | RETRO_ENVIRONMENT_EXPERIMENTAL)
+#endif
+
+/* Snap an arbitrary host rate to the nearest rate the option exposes. */
+static int vq2_nearest_supported_rate(unsigned host_rate)
+{
+   if      (host_rate <= (32000u + 44100u) / 2) return 32000;
+   else if (host_rate <= (44100u + 48000u) / 2) return 44100;
+   else if (host_rate <= (48000u + 96000u) / 2) return 48000;
+   return 96000;
+}
+
+/* Resolve the "Sound Samplerate (Hint)" core option to a concrete rate.
+ * "auto" asks the frontend for its target rate via
+ * RETRO_ENVIRONMENT_GET_TARGET_SAMPLE_RATE and snaps to the nearest supported
+ * value (falling back to 44100 if the frontend doesn't implement the call);
+ * otherwise the literal "32000".."96000" is used. Resolved once at startup
+ * before the audio subsystem and the AV info are queried, so a change only
+ * takes effect on the next core load. */
+static void update_audio_samplerate(void)
+{
+   struct retro_variable var;
+   int chosen = AUDIO_SAMPLE_RATE;
+
+   var.key   = "vitaquakeii_sound_samplerate";
+   var.value = NULL;
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (!strcmp(var.value, "auto"))
+      {
+         unsigned host_rate = 0;
+         if (environ_cb(RETRO_ENVIRONMENT_GET_TARGET_SAMPLE_RATE, &host_rate)
+               && host_rate > 0)
+            chosen = vq2_nearest_supported_rate(host_rate);
+         else
+            chosen = AUDIO_SAMPLE_RATE;  /* frontend can't tell us; safe default */
+      }
+      else
+         chosen = atoi(var.value);  /* "32000".."96000" */
+   }
+
+   audio_sample_rate = chosen;
+}
+
 static void update_variables(bool startup)
 {
    struct retro_variable var;
@@ -1541,6 +1597,10 @@ static void update_variables(bool startup)
 
    if (startup)
    {
+      /* Resolve the output sample rate before the audio subsystem and AV info
+       * are set up, so dma.speed / s_khz / timing.sample_rate all agree. */
+      update_audio_samplerate();
+
       if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var))
       {
          if (!strcmp(var.value, "auto"))
@@ -2011,7 +2071,7 @@ void retro_get_system_info(struct retro_system_info *info)
 void retro_get_system_av_info(struct retro_system_av_info *info)
 {
    info->timing.fps            = framerate;
-   info->timing.sample_rate    = AUDIO_SAMPLE_RATE;
+   info->timing.sample_rate    = audio_sample_rate;
 
    info->geometry.base_width   = scr_width;
    info->geometry.base_height  = scr_height;
@@ -2534,7 +2594,7 @@ static void audio_callback(void)
     * worth of audio (frame_samps stereo pairs) and submit it.  No DMA read
     * cursor, no mix-ahead window, no wall-clock -- identical input yields
     * identical output (run-ahead / rewind / netplay safe). */
-   unsigned frame_samps            = AUDIO_SAMPLE_RATE / framerate; /* stereo pairs */
+   unsigned frame_samps            = audio_sample_rate / framerate; /* stereo pairs */
    unsigned ringmask               = (AUDIO_BUFFER_SIZE >> 1) - 1;  /* ring is in pairs */
    unsigned audio_frames_remaining = frame_samps;
    int16_t *audio_out_ptr          = audio_out_buffer;
@@ -2634,11 +2694,11 @@ qboolean SNDDMA_Init(void)
    sound_initialized = 0;
 
    /* Force Quake to use our settings */
-   Cvar_SetValue( "s_khz", AUDIO_SAMPLE_RATE );
+   Cvar_SetValue( "s_khz", audio_sample_rate );
 
    /* Fill the audio DMA information block */
    dma.samplebits       = 16;
-   dma.speed            = AUDIO_SAMPLE_RATE;
+   dma.speed            = audio_sample_rate;
    dma.channels         = 2;
    dma.samples          = AUDIO_BUFFER_SIZE;
    dma.samplepos        = 0;
