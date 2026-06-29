@@ -28,28 +28,57 @@ int		snd_scaletable[32][256];
 int 	*snd_p, snd_linear_count, snd_vol;
 short	*snd_out;
 
+/*
+================
+S_SoftClip
+
+Memoryless soft clipper used in place of the hard 16-bit clamp.  Below
+S_SOFTCLIP_KNEE the signal passes through untouched (bit-identical to the old
+clamp); from there a quadratic knee with unity slope at the knee eases the
+last stretch into the rail, so overload saturates gently instead of squaring
+off into harsh distortion.  Integer-only -> bit-exact across platforms (no
+float, so it stays deterministic for run-ahead / netplay) and adds no latency.
+
+  KNEE = 0.75 full scale, END = 2*MAX - KNEE (curve reaches the rail here),
+  DEN  = 2*(END - KNEE); y = MAX - (END - v)^2 / DEN.
+================
+*/
+#define S_SOFTCLIP_KNEE 24576
+#define S_SOFTCLIP_MAX  32767
+#define S_SOFTCLIP_END  40958
+#define S_SOFTCLIP_DEN  32764
+
+static int S_SoftClip (int v)
+{
+	int	d;
+
+	if (v >= 0)
+	{
+		if (v <= S_SOFTCLIP_KNEE)
+			return v;
+		if (v >= S_SOFTCLIP_END)
+			return S_SOFTCLIP_MAX;
+		d = S_SOFTCLIP_END - v;
+		return S_SOFTCLIP_MAX - (d * d) / S_SOFTCLIP_DEN;
+	}
+
+	v = -v;
+	if (v <= S_SOFTCLIP_KNEE)
+		return -v;
+	if (v >= S_SOFTCLIP_END)
+		return -32768;
+	d = S_SOFTCLIP_END - v;
+	return -(S_SOFTCLIP_MAX - (d * d) / S_SOFTCLIP_DEN);
+}
+
 void S_WriteLinearBlastStereo16 (void)
 {
 	int		i;
-	int		val;
 
 	for (i=0 ; i<snd_linear_count ; i+=2)
 	{
-		val = snd_p[i]>>8;
-		if (val > 0x7fff)
-			snd_out[i] = 0x7fff;
-		else if (val < (short)0x8000)
-			snd_out[i] = (short)0x8000;
-		else
-			snd_out[i] = val;
-
-		val = snd_p[i+1]>>8;
-		if (val > 0x7fff)
-			snd_out[i+1] = 0x7fff;
-		else if (val < (short)0x8000)
-			snd_out[i+1] = (short)0x8000;
-		else
-			snd_out[i+1] = val;
+		snd_out[i]   = S_SoftClip (snd_p[i]   >> 8);
+		snd_out[i+1] = S_SoftClip (snd_p[i+1] >> 8);
 	}
 }
 //#else
@@ -177,12 +206,8 @@ void S_TransferPaintBuffer(int endtime)
 			short *out = (short *) pbuf;
 			while (count--)
 			{
-				val = *p >> 8;
+				val = S_SoftClip (*p >> 8);
 				p+= step;
-				if (val > 0x7fff)
-					val = 0x7fff;
-				else if (val < (short)0x8000)
-					val = (short)0x8000;
 				out[out_idx] = val;
 				out_idx = (out_idx + 1) & out_mask;
 			}
