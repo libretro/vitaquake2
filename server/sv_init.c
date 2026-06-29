@@ -25,25 +25,25 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 server_static_t	svs;				// persistant server info
 server_t		sv;					// local server
 
-// SV_CheckForSavegame() must only restore a save/current/<map>.sav that
-// legitimately belongs to *this* game session, never a leftover from a
-// previous game. The on-disk wipe at new-game start is supposed to remove the
-// old files, but it cannot be relied on for correctness: a frontend VFS / host
-// path quirk that leaves a file behind would resurrect an entire dead level
-// (every monster already killed) and can drop a restored monster on top of the
-// player's fresh spawn point. So the restore decision is gated in memory:
-//
-//   * sv_current_from_load - the save/current contents came from loading a
-//     savegame, so every level in it is ours to restore.
-//   * sv_session_levels[]  - maps we wrote to save/current this session by
-//     *leaving* them (a real backtrack within a unit). Restoring one of these
-//     is the intended Quake II persistence; restoring anything else is stale.
-//
-// A brand-new game starts with neither set, so its first visit to every level
-// spawns fresh (and deletes the stale file defensively), while genuine
-// backtracking still restores. This also covers reaching the first level
-// through an intro cinematic ("map *ntro.cin+demo1"): the cinematic was never
-// written this session, so it spawns fresh too.
+/* SV_CheckForSavegame() must only restore a save/current/<map>.sav that
+ * legitimately belongs to *this* game session, never a leftover from a
+ * previous game. The on-disk wipe at new-game start is supposed to remove the
+ * old files, but it cannot be relied on for correctness: a frontend VFS / host
+ * path quirk that leaves a file behind would resurrect an entire dead level
+ * (every monster already killed) and can drop a restored monster on top of the
+ * player's fresh spawn point. So the restore decision is gated in memory:
+ *
+ *   * sv_current_from_load - the save/current contents came from loading a
+ *     savegame, so every level in it is ours to restore.
+ *   * sv_session_levels[]  - maps we wrote to save/current this session by
+ *     *leaving* them (a real backtrack within a unit). Restoring one of these
+ *     is the intended Quake II persistence; restoring anything else is stale.
+ *
+ * A brand-new game starts with neither set, so its first visit to every level
+ * spawns fresh (and deletes the stale file defensively), while genuine
+ * backtracking still restores. This also covers reaching the first level
+ * through an intro cinematic ("map *ntro.cin+demo1"): the cinematic was never
+ * written this session, so it spawns fresh too. */
 #define SV_MAX_SESSION_LEVELS	64
 static char		sv_session_levels[SV_MAX_SESSION_LEVELS][MAX_QPATH];
 static int		sv_session_level_count = 0;
@@ -192,13 +192,13 @@ void SV_CheckForSavegame (void)
 
 	Com_sprintf (name, sizeof(name), "%s/save/current/%s.sav", savedir, sv.name);
 
-	// Only restore this level if save/current is legitimately ours this
-	// session: a loaded savegame populated it, or we wrote this level on
-	// leaving it (a backtrack within the unit). Anything else is leftover
-	// from a previous game that the new-game wipe failed to remove -
-	// restoring it would revive the whole dead level and could spawn a
-	// monster on top of the player. Delete it so it can never be restored,
-	// then spawn fresh.
+	/* Only restore this level if save/current is legitimately ours this
+	 * session: a loaded savegame populated it, or we wrote this level on
+	 * leaving it (a backtrack within the unit). Anything else is leftover
+	 * from a previous game that the new-game wipe failed to remove -
+	 * restoring it would revive the whole dead level and could spawn a
+	 * monster on top of the player. Delete it so it can never be restored,
+	 * then spawn fresh. */
 	if (!sv.loadgame && !sv_current_from_load
 		&& !SV_LevelWrittenThisSession (sv.name))
 	{
@@ -373,10 +373,10 @@ void SV_InitGame (void)
 	edict_t	*ent;
 	char	idmaster[32];
 
-	// "A brand new game has been started" - reset the per-session level
-	// tracking so SV_CheckForSavegame() treats every level as a fresh first
-	// visit and won't restore a stale save/current level left over from a
-	// previous game over it.
+	/* "A brand new game has been started" - reset the per-session level
+	 * tracking so SV_CheckForSavegame() treats every level as a fresh first
+	 * visit and won't restore a stale save/current level left over from a
+	 * previous game over it. */
 	SV_ResetSessionLevels ();
 
 	if (svs.initialized)
@@ -487,9 +487,9 @@ void SV_Map (qboolean attractloop, char *levelstring, qboolean loadgame)
 	sv.loadgame = loadgame;
 	sv.attractloop = attractloop;
 
-	// A load populated save/current from the chosen savegame, so every level
-	// in it is legitimate to restore for the rest of this session (until the
-	// next brand-new game resets the tracking via SV_InitGame).
+	/* A load populated save/current from the chosen savegame, so every level
+	 * in it is legitimate to restore for the rest of this session (until the
+	 * next brand-new game resets the tracking via SV_InitGame). */
 	if (loadgame)
 		sv_current_from_load = true;
 
