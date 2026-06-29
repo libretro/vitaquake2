@@ -76,7 +76,6 @@ cvar_t		*s_volume;
 cvar_t		*s_testsound;
 cvar_t		*s_khz;
 cvar_t		*s_show;
-cvar_t		*s_mixahead;
 cvar_t		*s_primary;
 
 
@@ -126,7 +125,6 @@ void S_Init (void)
 	{
 		s_volume = Cvar_Get ("s_volume", "0.7", CVAR_ARCHIVE);
 		s_khz = Cvar_Get ("s_khz", "48000", CVAR_ARCHIVE);
-		s_mixahead = Cvar_Get ("s_mixahead", "0.2", CVAR_ARCHIVE);
 		s_show = Cvar_Get ("s_show", "0", 0);
 		s_testsound = Cvar_Get ("s_testsound", "0", 0);
 		s_primary = Cvar_Get ("s_primary", "0", CVAR_ARCHIVE);	// win32 specific
@@ -1081,11 +1079,7 @@ S_PaintFrame
 
 libretro mixes deterministically: exactly one video frame's worth of audio
 (frame_samps stereo sample-pairs) is painted per retro_run, with paintedtime
-as the sole monotonic cursor.  There is no DMA read cursor, no s_mixahead
-look-ahead window and no wall-clock timer, so identical input always yields
-identical output (required for run-ahead, rewind and netplay).  The libretro
-audio step then reads back exactly this region from dma.buffer and hands it
-to audio_batch_cb.
+as the sole monotonic cursor.  There is no DMA read cursor, no wall-clock timer, so identical input always yields identical output (required for run-ahead, rewind and netplay).  The libretro audio step then reads back exactly this region from dma.buffer and hands it to audio_batch_cb.
 ==============
 */
 void S_PaintFrame(int frame_samps)
