@@ -249,7 +249,10 @@ If the line width has changed, reformat the buffer.
 void Con_CheckResize (void)
 {
 	int		i, j, width, oldwidth, oldtotallines, numlines, numchars;
-	char	tbuf[CON_TEXTSIZE];
+	/* 32 KiB console-text scratch: keep it off the stack. Con_CheckResize
+	 * runs on resolution changes (e.g. Switch dock/undock) and is not
+	 * re-entrant in this single-threaded core. */
+	static char	tbuf[CON_TEXTSIZE];
 	float scale = SCR_GetMenuScale();
 	
 	width = ((int)(viddef.width / scale) / 8) - 2;
