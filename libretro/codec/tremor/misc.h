@@ -41,21 +41,27 @@
 #include <sys/types.h>
 #endif
 
-#if BYTE_ORDER==LITTLE_ENDIAN
+/* Select the 'union magic' layout by endianness. BYTE_ORDER/LITTLE_ENDIAN/
+   BIG_ENDIAN are not exposed by every libc (e.g. uClibc, or musl without
+   _GNU_SOURCE); when they are missing the original "#if BYTE_ORDER==..."
+   tests below both evaluate as 0==0 and 'union magic' is defined twice,
+   which breaks the build (seen on arm32 toolchains). Prefer the compiler's
+   own __BYTE_ORDER__, falling back to BYTE_ORDER only when it is actually
+   defined, so exactly one definition is always emitted. */
+#if (defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)) || \
+    (!defined(__BYTE_ORDER__) && defined(BYTE_ORDER) && defined(BIG_ENDIAN) && (BYTE_ORDER == BIG_ENDIAN))
 union magic {
   struct {
-    ogg_int32_t lo;
     ogg_int32_t hi;
+    ogg_int32_t lo;
   } halves;
   ogg_int64_t whole;
 };
-#endif 
-
-#if BYTE_ORDER==BIG_ENDIAN
+#else
 union magic {
   struct {
-    ogg_int32_t hi;
     ogg_int32_t lo;
+    ogg_int32_t hi;
   } halves;
   ogg_int64_t whole;
 };

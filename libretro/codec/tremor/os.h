@@ -45,7 +45,7 @@
 #  define BYTE_ORDER LITTLE_ENDIAN
 #endif
 
-#ifdef HAVE_ALLOCA_H
+#if defined(HAVE_ALLOCA_H) || defined(__linux__)
 #  include <alloca.h>
 #endif
 
