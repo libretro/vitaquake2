@@ -44,7 +44,13 @@ typedef enum {false, true}	qboolean;
 #define MAX_STRING_TOKENS 80        /* max tokens resulting from Cmd_TokenizeString */
 #define MAX_TOKEN_CHARS 128         /* max length of an individual token */
 
-#define MAX_QPATH PATH_MAX_LENGTH   /* max length of a quake game pathname */
+/* MAX_QPATH is the in-game asset path limit ("models/x/tris.md2") and must
+ * stay 64 to match q_shared.h (engine/server/client) and the rogue/xatrix/
+ * zaero game modules. It also fixes sizeof(level_locals_t), so it is part of
+ * the savegame layout -- do NOT tie it to PATH_MAX_LENGTH. Only MAX_OSPATH,
+ * the host filesystem path, needs to grow for long save directories on iOS/
+ * Xbox; that one tracks PATH_MAX_LENGTH below. */
+#define MAX_QPATH 64                /* max length of a quake game pathname */
 
 #define MAX_OSPATH PATH_MAX_LENGTH  /* max length of a filesystem pathname */
 
