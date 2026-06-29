@@ -1153,6 +1153,19 @@ ReadLevel(const char *filename)
 			break;
 		}
 
+		/* A savegame whose serialized layout does not match this build
+		 * (e.g. one written before MAX_QPATH changed, which alters
+		 * sizeof(level_locals_t) and desyncs the entity stream) can yield
+		 * an out-of-range entity number here. sizeof(edict_t) is checked
+		 * above but does not cover level_locals, so guard the index before
+		 * it walks off the g_edicts allocation and crashes to the
+		 * frontend. */
+		if (entnum < 0 || entnum >= game.maxentities)
+		{
+			rfclose(f);
+			gi.error("ReadLevel: bad entity number %i (incompatible or corrupt savegame)", entnum);
+		}
+
 		if (entnum >= globals.num_edicts)
 		{
 			globals.num_edicts = entnum + 1;
