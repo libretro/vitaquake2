@@ -49,6 +49,20 @@
 #  include <alloca.h>
 #endif
 
+/* alloca: statically-linked console / web toolchains (devkitARM, devkitPPC
+ * for GameCube/Wii/Wii U, devkitA64/libnx, Emscripten) ship no external
+ * alloca() symbol, so a libc-style alloca() call compiles but fails to link
+ * with "undefined reference to alloca". GCC and Clang always provide
+ * __builtin_alloca - which is exactly what glibc's alloca() expands to - and
+ * it lowers to an inline stack adjustment needing no symbol. Route alloca()
+ * through the builtin on those compilers (these are stack scratch buffers, not
+ * aligned heap, so memalign is not applicable). MSVC keeps _alloca via
+ * <malloc.h>. */
+#if defined(__GNUC__) || defined(__clang__)
+#  undef alloca
+#  define alloca __builtin_alloca
+#endif
+
 #ifdef USE_MEMORY_H
 #  include <memory.h>
 #endif
