@@ -434,8 +434,11 @@ byte *SCR_ReadNextFrame (void)
 {
 	int		r;
 	int		command;
-	byte	samples[22050/14*4];
-	byte	compressed[0x20000];
+	/* ~134 KiB of decode scratch: keep it off the stack for low-stack
+	 * consoles (Switch, 3DS). The cinematic decoder is single-threaded and
+	 * both buffers are written before they are read within this call. */
+	static byte	samples[22050/14*4];
+	static byte	compressed[0x20000];
 	int		size;
 	byte	*pic;
 	cblock_t	in, huf1;
