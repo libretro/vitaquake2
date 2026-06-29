@@ -168,9 +168,19 @@ VFS and could miss them entirely on redirecting backends).
 #define SV_WIPE_MAX	64
 static void SV_WipeMatching (char *pattern)
 {
-	char	names[SV_WIPE_MAX][MAX_OSPATH];
+	/* Collect the matches first, then delete: mutating the directory while
+	 * Sys_FindNext() is still walking it is undefined on some VFS/host
+	 * backends. The name table is heap-allocated rather than a local array
+	 * because MAX_OSPATH is large (4096), and SV_WIPE_MAX of them on the
+	 * stack (256 KiB) overflows the small thread stacks used on consoles
+	 * such as the Switch and 3DS. */
+	char	(*names)[MAX_OSPATH];
 	int		count;
 	char	*s;
+
+	names = (char (*)[MAX_OSPATH])malloc (SV_WIPE_MAX * sizeof(*names));
+	if (!names)
+		return;
 
 	count = 0;
 	s = Sys_FindFirst (pattern, 0, 0);
@@ -185,6 +195,8 @@ static void SV_WipeMatching (char *pattern)
 
 	while (count > 0)
 		filestream_delete (names[--count]);
+
+	free (names);
 }
 
 /*
