@@ -755,16 +755,9 @@ float	crand(void);	// -1 to 1
 
 extern	cvar_t	*developer;
 extern	cvar_t	*dedicated;
-extern	cvar_t	*host_speeds;
 extern	cvar_t	*log_stats;
 
 extern	RFILE *log_stats_file;
-
-// host_speeds times
-extern	int		time_before_game;
-extern	int		time_after_game;
-extern	int		time_before_ref;
-extern	int		time_after_ref;
 
 void Z_Free (void *ptr);
 void *Z_Malloc (int size);			// returns 0 filled memory

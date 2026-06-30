@@ -1762,11 +1762,7 @@ void CL_Frame (int msec)
 		CL_PrepRefresh ();
 
 	// update the screen
-	if (host_speeds->value)
-		time_before_ref = Sys_Milliseconds ();
 	SCR_UpdateScreen ();
-	if (host_speeds->value)
-		time_after_ref = Sys_Milliseconds ();
 
 	// update audio
 	S_Update (cl.refdef.vieworg, cl.v_forward, cl.v_right, cl.v_up);

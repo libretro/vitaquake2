@@ -40,7 +40,6 @@ jmp_buf abortframe;		// an ERR_DROP occured, exit the entire frame
 
 RFILE	*log_stats_file;
 
-cvar_t	*host_speeds;
 cvar_t	*log_stats;
 cvar_t	*developer;
 cvar_t	*timescale;
@@ -52,12 +51,6 @@ extern cvar_t	*dedicated;
 RFILE	*logfile;
 
 int			server_state;
-
-// host_speeds times
-int		time_before_game;
-int		time_after_game;
-int		time_before_ref;
-int		time_after_ref;
 
 /*
 ============================================================================
@@ -1483,7 +1476,6 @@ void Qcommon_Init (int argc, char **argv)
     Cmd_AddCommand ("z_stats", Z_Stats_f);
     Cmd_AddCommand ("error", Com_Error_f);
 
-	host_speeds = Cvar_Get ("host_speeds", "0", 0);
 	log_stats = Cvar_Get ("log_stats", "0", 0);
 	developer = Cvar_Get ("developer", "0", 0);
 	timescale = Cvar_Get ("timescale", "1", 0);
@@ -1539,7 +1531,6 @@ Qcommon_Frame
 void Qcommon_Frame (int msec)
 {
 	char	*s;
-	int		time_before, time_between, time_after;
 
 	if (setjmp (abortframe) )
 		return;			// an ERR_DROP was thrown
@@ -1596,34 +1587,9 @@ void Qcommon_Frame (int msec)
 	} while (s);
 	Cbuf_Execute ();
 
-	if (host_speeds->value)
-		time_before = Sys_Milliseconds ();
-
 	SV_Frame (msec);
 
-	if (host_speeds->value)
-		time_between = Sys_Milliseconds ();		
-
 	CL_Frame (msec);
-
-	if (host_speeds->value)
-		time_after = Sys_Milliseconds ();		
-
-
-	if (host_speeds->value)
-	{
-		int			all, sv, gm, cl, rf;
-
-		all = time_after - time_before;
-		sv = time_between - time_before;
-		cl = time_after - time_between;
-		gm = time_after_game - time_before_game;
-		rf = time_after_ref - time_before_ref;
-		sv -= gm;
-		cl -= rf;
-		Com_Printf ("all:%3i sv:%3i gm:%3i cl:%3i rf:%3i\n",
-			all, sv, gm, cl, rf);
-	}	
 }
 
 /*

@@ -724,9 +724,6 @@ SV_RunGameFrame
 */
 void SV_RunGameFrame (void)
 {
-	if (host_speeds->value)
-		time_before_game = Sys_Milliseconds ();
-
 	// we always need to bump framenum, even if we
 	// don't run the world, otherwise the delta
 	// compression can get confused when a client
@@ -748,9 +745,6 @@ void SV_RunGameFrame (void)
 		}
 	}
 
-	if (host_speeds->value)
-		time_after_game = Sys_Milliseconds ();
-
 }
 
 /*
@@ -761,8 +755,6 @@ SV_Frame
 */
 void SV_Frame (int msec)
 {
-	time_before_game = time_after_game = 0;
-
 	// if server is not active, do nothing
 	if (!svs.initialized)
 		return;
