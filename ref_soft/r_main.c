@@ -1358,6 +1358,8 @@ static void Draw_GetPalette (void)
 	}
 
 	free (pal);
+
+	SWR_BuildPalmap ();
 }
 
 struct image_s *SWR_RegisterSkin (char *name);

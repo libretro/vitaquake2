@@ -41,6 +41,11 @@ void R_DrawSurfaceBlock8_mip1 (void);
 void R_DrawSurfaceBlock8_mip2 (void);
 void R_DrawSurfaceBlock8_mip3 (void);
 
+void R_DrawSurfaceBlockRGB_mip0 (void);
+void R_DrawSurfaceBlockRGB_mip1 (void);
+void R_DrawSurfaceBlockRGB_mip2 (void);
+void R_DrawSurfaceBlockRGB_mip3 (void);
+
 static void	(*surfmiptable[4])(void) = {
 	R_DrawSurfaceBlock8_mip0,
 	R_DrawSurfaceBlock8_mip1,
@@ -48,8 +53,15 @@ static void	(*surfmiptable[4])(void) = {
 	R_DrawSurfaceBlock8_mip3
 };
 
+static void	(*surfmiptableRGB[4])(void) = {
+	R_DrawSurfaceBlockRGB_mip0,
+	R_DrawSurfaceBlockRGB_mip1,
+	R_DrawSurfaceBlockRGB_mip2,
+	R_DrawSurfaceBlockRGB_mip3
+};
+
 void SWR_BuildLightMap (void);
-extern	unsigned		blocklights[1024];	// allow some very large lightmaps
+extern	unsigned		blocklights[1024*3];	// RGB-wide
 
 float           surfscale;
 qboolean        r_cache_thrash;         // set if surface cache is thrashing
@@ -97,10 +109,17 @@ void R_DrawSurface (void)
 	unsigned char	*pcolumndest;
 	void			(*pblockdrawer)(void);
 	image_t			*mt;
+	int				colored;
 
 	surfrowbytes = r_drawsurf.rowbytes;
 
 	mt = r_drawsurf.image;
+
+	/* colored lighting is active for this surface when enabled, the surface
+	 * carries a 24bit lightmap, the world has light data, and we are not in
+	 * fullbright -- mirror this test where SWR_BuildLightMapRGB is selected. */
+	colored = sw_colored_lighting_enabled && r_drawsurf.surf->samples_rgb
+	          && r_refsoft_worldmodel->lightdata && !r_fullbright->value;
 	
 	r_source = mt->pixels[r_drawsurf.surfmip];
 	
@@ -120,7 +139,7 @@ void R_DrawSurface (void)
 
 //==============================
 
-	pblockdrawer = surfmiptable[r_drawsurf.surfmip];
+	pblockdrawer = colored ? surfmiptableRGB[r_drawsurf.surfmip] : surfmiptable[r_drawsurf.surfmip];
 // TODO: only needs to be set when there is a display settings change
 	horzblockstep = blocksize;
 
@@ -144,7 +163,7 @@ void R_DrawSurface (void)
 
 	for (u=0 ; u<r_numhblocks; u++)
 	{
-		r_lightptr = blocklights + u;
+		r_lightptr = blocklights + (colored ? u*3 : u);
 
 		prowdestbase = pcolumndest;
 
@@ -361,6 +380,81 @@ void R_DrawSurfaceBlock8_mip3 (void)
 			psource -= r_stepback;
 	}
 }
+
+/*
+================
+R_DrawSurfaceBlockRGB
+
+Colored counterpart of R_DrawSurfaceBlock8_mipN. blocklights holds three
+interleaved channels (per-luxel RGB light multipliers in [256,65536]); the
+texel's palette RGB (d_refsoft_8to24table) is multiplied by the bilinearly
+interpolated light per channel, then snapped back to a palette index through
+palmap2. shift selects the block size: mip0=4(16), mip1=3(8), mip2=2(4),
+mip3=1(2).
+================
+*/
+extern unsigned	d_refsoft_8to24table[256];
+
+static void R_DrawSurfaceBlockRGB (int shift)
+{
+	int				v, i, b, bw;
+	unsigned char	pix, *psource, *prowdest, *pix24;
+	int				lleft[3], lright[3], lleftstep[3], lrightstep[3];
+	int				light[3], lstep[3];
+	int				tr, tg, tb;
+
+	bw = 1 << shift;
+	psource = pbasesource;
+	prowdest = prowdestbase;
+
+	for (v=0 ; v<r_numvblocks ; v++)
+	{
+		lleft[0] = r_lightptr[0]; lright[0] = r_lightptr[3];
+		lleft[1] = r_lightptr[1]; lright[1] = r_lightptr[4];
+		lleft[2] = r_lightptr[2]; lright[2] = r_lightptr[5];
+		r_lightptr += r_lightwidth * 3;
+		lleftstep[0]  = ((int)r_lightptr[0] - lleft[0])  >> shift;
+		lrightstep[0] = ((int)r_lightptr[3] - lright[0]) >> shift;
+		lleftstep[1]  = ((int)r_lightptr[1] - lleft[1])  >> shift;
+		lrightstep[1] = ((int)r_lightptr[4] - lright[1]) >> shift;
+		lleftstep[2]  = ((int)r_lightptr[2] - lleft[2])  >> shift;
+		lrightstep[2] = ((int)r_lightptr[5] - lright[2]) >> shift;
+
+		for (i=0 ; i<bw ; i++)
+		{
+			lstep[0] = (lleft[0] - lright[0]) >> shift; light[0] = lright[0];
+			lstep[1] = (lleft[1] - lright[1]) >> shift; light[1] = lright[1];
+			lstep[2] = (lleft[2] - lright[2]) >> shift; light[2] = lright[2];
+
+			for (b=bw-1 ; b>=0 ; b--)
+			{
+				pix = psource[b];
+				pix24 = (unsigned char *)&d_refsoft_8to24table[pix];
+				tr = (pix24[0] * light[0]) >> 17; if (tr < 0) tr = 0; else if (tr > 63) tr = 63;
+				tg = (pix24[1] * light[1]) >> 17; if (tg < 0) tg = 0; else if (tg > 63) tg = 63;
+				tb = (pix24[2] * light[2]) >> 17; if (tb < 0) tb = 0; else if (tb > 63) tb = 63;
+				prowdest[b] = palmap2[tr][tg][tb];
+				light[0] += lstep[0];
+				light[1] += lstep[1];
+				light[2] += lstep[2];
+			}
+
+			psource += sourcetstep;
+			lright[0] += lrightstep[0]; lleft[0] += lleftstep[0];
+			lright[1] += lrightstep[1]; lleft[1] += lleftstep[1];
+			lright[2] += lrightstep[2]; lleft[2] += lleftstep[2];
+			prowdest += surfrowbytes;
+		}
+
+		if (psource >= r_sourcemax)
+			psource -= r_stepback;
+	}
+}
+
+void R_DrawSurfaceBlockRGB_mip0 (void) { R_DrawSurfaceBlockRGB (4); }
+void R_DrawSurfaceBlockRGB_mip1 (void) { R_DrawSurfaceBlockRGB (3); }
+void R_DrawSurfaceBlockRGB_mip2 (void) { R_DrawSurfaceBlockRGB (2); }
+void R_DrawSurfaceBlockRGB_mip3 (void) { R_DrawSurfaceBlockRGB (1); }
 
 //============================================================================
 
@@ -634,7 +728,11 @@ surfcache_t *D_CacheSurface (msurface_t *surface, int miplevel)
 
 
 	// calculate the lightings
-	SWR_BuildLightMap ();
+	if (sw_colored_lighting_enabled && surface->samples_rgb
+	    && r_refsoft_worldmodel->lightdata && !r_fullbright->value)
+		SWR_BuildLightMapRGB ();
+	else
+		SWR_BuildLightMap ();
 	
 	// rasterize the surface into the cache
 	R_DrawSurface ();

@@ -272,7 +272,55 @@ void SWR_LightPoint (vec3_t p, vec3_t color)
 /*=================================================================== */
 
 
-unsigned		blocklights[1024];	/* allow some very large lightmaps */
+unsigned		blocklights[1024*3];	/* RGB-wide: mono path uses the first size entries, colored uses size*3 */
+
+/* Inverse-palette colour cube: maps a 6-6-6 (RGB>>2) lit colour back to the
+ * nearest palette index, so the colored-lighting path can fold an RGB
+ * multiply into the existing 8-bit surface cache. Built once from the palette
+ * (d_refsoft_8to24table). Index 255 is excluded so colored light never snaps
+ * onto the sky-overlay sentinel. */
+byte	palmap2[64][64][64];
+extern unsigned	d_refsoft_8to24table[256];
+
+static int SWR_BestColor (int r, int g, int b)
+{
+	int		i, bestdist, bestcolor, dist, dr, dg, db;
+	byte	*pal;
+
+	bestdist = 0x7fffffff;
+	bestcolor = 0;
+	for (i=0 ; i<255 ; i++)
+	{
+		pal = (byte *)&d_refsoft_8to24table[i];
+		dr = r - pal[0];
+		dg = g - pal[1];
+		db = b - pal[2];
+		dist = dr*dr + dg*dg + db*db;
+		if (dist < bestdist)
+		{
+			bestdist = dist;
+			bestcolor = i;
+			if (!dist)
+				break;
+		}
+	}
+	return bestcolor;
+}
+
+void SWR_BuildPalmap (void)
+{
+	static int	built = 0;
+	int		r, g, b;
+
+	if (built)
+		return;
+	built = 1;
+
+	for (r=0 ; r<64 ; r++)
+		for (g=0 ; g<64 ; g++)
+			for (b=0 ; b<64 ; b++)
+				palmap2[r][g][b] = (byte)SWR_BestColor (r<<2, g<<2, b<<2);
+}
 
 /*
 ===============
@@ -441,4 +489,152 @@ void SWR_BuildLightMap (void)
 		blocklights[i] = t;
 	}
 }
+
+
+/*
+===============
+SWR_AddDynamicLightsRGB
+
+Colored counterpart of SWR_AddDynamicLights: accumulates each dynamic light
+into the three interleaved channels of blocklights[], scaled by the light's
+RGB colour.
+===============
+*/
+static void SWR_AddDynamicLightsRGB (void)
+{
+	msurface_t	*surf;
+	int			lnum;
+	int			sd, td;
+	float		dist, rad, minlight;
+	vec3_t		impact, local;
+	int			s, t;
+	int			i, idx, add;
+	int			smax, tmax;
+	mtexinfo_t	*tex;
+	dlight_t	*dl;
+
+	surf = r_drawsurf.surf;
+	smax = (surf->extents[0]>>4)+1;
+	tmax = (surf->extents[1]>>4)+1;
+	tex = surf->texinfo;
+
+	for (lnum=0 ; lnum<r_refsoft_newrefdef.num_dlights ; lnum++)
+	{
+		if ( !(surf->dlightbits & (1<<lnum) ) )
+			continue;
+
+		dl = &r_refsoft_newrefdef.dlights[lnum];
+		rad = dl->intensity;
+		if (rad < 0)
+			rad = -rad;	/* negative lights just darken; treat as positive magnitude here */
+
+		dist = DotProduct (dl->origin, surf->plane->normal) - surf->plane->dist;
+		rad -= fabs(dist);
+		minlight = 32;
+		if (rad < minlight)
+			continue;
+		minlight = rad - minlight;
+
+		for (i=0 ; i<3 ; i++)
+			impact[i] = dl->origin[i] - surf->plane->normal[i]*dist;
+
+		local[0] = DotProduct (impact, tex->vecs[0]) + tex->vecs[0][3];
+		local[1] = DotProduct (impact, tex->vecs[1]) + tex->vecs[1][3];
+		local[0] -= surf->texturemins[0];
+		local[1] -= surf->texturemins[1];
+
+		for (t = 0 ; t<tmax ; t++)
+		{
+			td = local[1] - t*16;
+			if (td < 0)
+				td = -td;
+			for (s=0 ; s<smax ; s++)
+			{
+				sd = local[0] - s*16;
+				if (sd < 0)
+					sd = -sd;
+				if (sd > td)
+					dist = sd + (td>>1);
+				else
+					dist = td + (sd>>1);
+				if (dist < minlight)
+				{
+					add = (int)((rad - dist)*256);
+					idx = (t*smax + s)*3;
+					blocklights[idx+0] += (int)(add * dl->color[0]);
+					blocklights[idx+1] += (int)(add * dl->color[1]);
+					blocklights[idx+2] += (int)(add * dl->color[2]);
+				}
+			}
+		}
+	}
+}
+
+
+/*
+===============
+SWR_BuildLightMapRGB
+
+Colored counterpart of SWR_BuildLightMap. Accumulates the 24bit RGB lightmap
+(surf->samples_rgb) plus colored dynamic lights into three interleaved
+channels of blocklights[], then clamps each channel to [256, 65536] WITHOUT
+the colormap inversion -- the RGB surface-block builder uses these directly as
+per-channel multipliers (base_rgb * light >> 17).
+===============
+*/
+void SWR_BuildLightMapRGB (void)
+{
+	int			smax, tmax;
+	int			t;
+	int			i, size, size3;
+	byte		*lightmap;
+	unsigned	scale;
+	int			maps;
+	msurface_t	*surf;
+
+	surf = r_drawsurf.surf;
+
+	smax = (surf->extents[0]>>4)+1;
+	tmax = (surf->extents[1]>>4)+1;
+	size = smax*tmax;
+	size3 = size*3;
+
+	if (r_fullbright->value || !r_refsoft_worldmodel->lightdata || !surf->samples_rgb)
+	{
+		for (i=0 ; i<size3 ; i++)
+			blocklights[i] = 0;
+	}
+	else
+	{
+		for (i=0 ; i<size3 ; i++)
+			blocklights[i] = 0;
+
+		/* add all the lightmaps */
+		lightmap = surf->samples_rgb;
+		for (maps = 0 ; maps < MAXLIGHTMAPS && surf->styles[maps] != 255 ; maps++)
+		{
+			scale = r_drawsurf.lightadj[maps];	/* 8.8 fraction */
+			for (i=0 ; i<size3 ; i++)
+				blocklights[i] += lightmap[i] * scale;
+			lightmap += size3;	/* skip to next lightmap */
+		}
+
+		/* add all the dynamic lights */
+		if (surf->dlightframe == r_framecount)
+			SWR_AddDynamicLightsRGB ();
+	}
+
+	/* clamp each channel to [256, 65536]; no inversion (used as a multiplier) */
+	for (i=0 ; i<size3 ; i++)
+	{
+		t = (int)blocklights[i];
+		if (t < 256)
+			t = 256;
+		else if (t > 65536)
+			t = 65536;
+		blocklights[i] = t;
+	}
+
+}
+
 

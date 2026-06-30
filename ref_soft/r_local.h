@@ -520,6 +520,13 @@ extern unsigned short *sw_sky565_cur;    /* face currently being rasterized */
 extern int             sw_truecolor_sky_enabled;
 void D_DrawSkyOverlaySpans (espan_t *pspan);
 
+/* Colored lighting (software renderer): palmap2 snaps a 6-6-6 lit colour to
+ * the nearest palette index; gated by sw_colored_lighting_enabled. */
+extern byte palmap2[64][64][64];
+extern int  sw_colored_lighting_enabled;
+void SWR_BuildPalmap (void);
+void SWR_BuildLightMapRGB (void);
+
 
 extern int      *sintable;
 extern int      *intsintable;

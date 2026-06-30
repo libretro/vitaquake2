@@ -188,6 +188,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "enabled"
    },
    {
+      "vitaquakeii_sw_colored_lighting",
+      "[Software] Colored Lighting",
+      NULL,
+      "Use the map's 24-bit RGB lightmaps to tint the paletted software renderer, snapping each lit texel to the nearest palette entry via an inverse-palette lookup. Has no effect on the OpenGL renderer. When disabled, lighting collapses to the original monochrome intensity.",
+      NULL,
+      NULL,
+      {
+         { "enabled",  "Enabled" },
+         { "disabled", "Disabled" },
+         { NULL, NULL },
+      },
+      "enabled"
+   },
+   {
       "vitaquakeii_gl_modulate",
       "[GL] Brightness (Restart)",
       NULL,

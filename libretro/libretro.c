@@ -51,6 +51,8 @@ bool is_soft_render = false;
  * frame when env/<sky><suffix>.tga skies are present. Toggled by the
  * vitaquakeii_sw_truecolor_sky core option. */
 int sw_truecolor_sky_enabled = 1;
+/* Toggled by the vitaquakeii_sw_colored_lighting core option. */
+int sw_colored_lighting_enabled = 1;
 
 unsigned	sys_frame_time;
 int rumble_tick;
@@ -1674,6 +1676,14 @@ static void update_variables(bool startup)
       var.key = "vitaquakeii_sw_truecolor_sky";
       var.value = NULL;
       sw_truecolor_sky_enabled =
+         (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value
+          && !strcmp(var.value, "disabled")) ? 0 : 1;
+
+      /* Software-renderer colored lighting toggle (default on; no effect on
+       * GL). When off, the renderer uses the monochrome lightmap path. */
+      var.key = "vitaquakeii_sw_colored_lighting";
+      var.value = NULL;
+      sw_colored_lighting_enabled =
          (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value
           && !strcmp(var.value, "disabled")) ? 0 : 1;
 

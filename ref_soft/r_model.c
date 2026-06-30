@@ -300,6 +300,7 @@ void Mod_LoadLighting (lump_t *l)
 	if (!l->filelen)
 	{
 		loadmodel->lightdata = NULL;
+		loadmodel->lightdata_rgb = NULL;
 		return;
 	}
 	size = l->filelen/3;
@@ -314,6 +315,10 @@ void Mod_LoadLighting (lump_t *l)
 		else
 			loadmodel->lightdata[i] = in[2];
 	}
+
+	/* keep the original 24bit RGB lightmap for the colored-lighting path */
+	loadmodel->lightdata_rgb = Hunk_Alloc (l->filelen);
+	memcpy (loadmodel->lightdata_rgb, mod_base + l->fileofs, l->filelen);
 }
 
 
@@ -631,9 +636,15 @@ void Mod_LoadFaces (lump_t *l)
 			out->styles[i] = in->styles[i];
 		i = LittleLong(in->lightofs);
 		if (i == -1)
+		{
 			out->samples = NULL;
+			out->samples_rgb = NULL;
+		}
 		else
+		{
 			out->samples = loadmodel->lightdata + i/3;
+			out->samples_rgb = loadmodel->lightdata_rgb ? loadmodel->lightdata_rgb + i : NULL;
+		}
 		
 	// set the drawing flags flag
 		
