@@ -43,7 +43,6 @@ swstate_t sw_state;
 void		*colormap;
 vec3_t		viewlightvec;
 alight_t	r_viewlighting = {128, 192, viewlightvec};
-float		r_time1;
 int			r_numallocatededges;
 float		r_aliasuvscale = 1.0;
 int			r_outofsurfaces;
@@ -106,9 +105,6 @@ int			r_refsoft_viewcluster, r_refsoft_oldviewcluster;
 
 image_t  	*r_notexture_mip;
 
-float	da_time1, da_time2, dp_time1, dp_time2, db_time1, db_time2, rw_time1, rw_time2;
-float	se_time1, se_time2, de_time1, de_time2;
-
 static void SWR_MarkLeaves (void);
 
 cvar_t	*r_refsoft_lefthand;
@@ -128,12 +124,10 @@ cvar_t	*sw_waterwarp;
 
 cvar_t	*r_refsoft_drawworld;
 static cvar_t	*r_drawentities;
-cvar_t	*r_dspeeds;
 cvar_t	*r_fullbright;
 cvar_t  *r_refsoft_lerpmodels;
 static cvar_t  *r_novis;
 
-cvar_t	*r_speeds;
 cvar_t	*r_refsoft_lightlevel;	//FIXME HACK
 
 cvar_t	*vid_gamma;
@@ -298,11 +292,9 @@ void SWR_Register (void)
 	gl_xflip = ri.Cvar_Get( "gl_xflip", "0", CVAR_ARCHIVE);
 	
 	r_refsoft_lefthand = ri.Cvar_Get( "hand", "0", CVAR_USERINFO | CVAR_ARCHIVE );
-	r_speeds = ri.Cvar_Get ("r_speeds", "0", 0);
 	r_fullbright = ri.Cvar_Get ("r_fullbright", "0", 0);
 	r_drawentities = ri.Cvar_Get ("r_drawentities", "1", 0);
 	r_refsoft_drawworld = ri.Cvar_Get ("r_drawworld", "1", 0);
-	r_dspeeds = ri.Cvar_Get ("r_dspeeds", "0", 0);
 	r_refsoft_lightlevel = ri.Cvar_Get ("r_lightlevel", "0", 0);
 	r_refsoft_lerpmodels = ri.Cvar_Get( "r_lerpmodels", "1", 0 );
 	r_novis = ri.Cvar_Get( "r_novis", "0", 0 );
@@ -923,26 +915,9 @@ void R_EdgeDrawing (void)
 
 	R_BeginEdgeFrame ();
 
-	if (r_dspeeds->value)
-	{
-		rw_time1 = Sys_Milliseconds ();
-	}
-
 	R_RenderWorld ();
 
-	if (r_dspeeds->value)
-	{
-		rw_time2 = Sys_Milliseconds ();
-		db_time1 = rw_time2;
-	}
-
 	R_DrawBEntitiesOnList ();
-
-	if (r_dspeeds->value)
-	{
-		db_time2 = Sys_Milliseconds ();
-		se_time1 = db_time2;
-	}
 
 	R_ScanEdges ();
 }
@@ -1039,9 +1014,6 @@ static void SWR_RenderFrame (refdef_t *fd)
 	VectorCopy (fd->vieworg, r_refdef.vieworg);
 	VectorCopy (fd->viewangles, r_refdef.viewangles);
 
-	if (r_speeds->value || r_dspeeds->value)
-		r_time1 = Sys_Milliseconds ();
-
 	SWR_SetupFrame ();
 
 	SWR_MarkLeaves ();	// done here so we know if we're in water
@@ -1050,24 +1022,9 @@ static void SWR_RenderFrame (refdef_t *fd)
 
 	R_EdgeDrawing ();
 
-	if (r_dspeeds->value)
-	{
-		se_time2 = Sys_Milliseconds ();
-		de_time1 = se_time2;
-	}
-
 	SWR_DrawEntitiesOnList ();
 
-	if (r_dspeeds->value)
-	{
-		de_time2 = Sys_Milliseconds ();
-		dp_time1 = Sys_Milliseconds ();
-	}
-
 	SWR_DrawParticles ();
-
-	if (r_dspeeds->value)
-		dp_time2 = Sys_Milliseconds ();
 
 	SWR_DrawAlphaSurfaces();
 
@@ -1076,22 +1033,10 @@ static void SWR_RenderFrame (refdef_t *fd)
 	if (r_dowarp)
 		D_WarpScreen ();
 
-	if (r_dspeeds->value)
-		da_time1 = Sys_Milliseconds ();
-
-	if (r_dspeeds->value)
-		da_time2 = Sys_Milliseconds ();
-
 	R_CalcPalette ();
 
 	if (sw_aliasstats->value)
 		R_PrintAliasStats ();
-		
-	if (r_speeds->value)
-		R_PrintTimes ();
-
-	if (r_dspeeds->value)
-		R_PrintDSpeeds ();
 
 	if (sw_reportsurfout->value && r_outofsurfaces)
 		ri.Con_Printf (PRINT_ALL,"Short %d surfaces\n", r_outofsurfaces);

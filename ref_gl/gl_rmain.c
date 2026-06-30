@@ -76,7 +76,6 @@ int		r_viewcluster, r_viewcluster2, r_oldviewcluster, r_oldviewcluster2;
 cvar_t	*r_norefresh;
 cvar_t	*r_drawentities;
 cvar_t	*r_drawworld;
-static cvar_t	*r_speeds;
 cvar_t	*r_refgl_fullbright;
 cvar_t	*r_novis;
 cvar_t	*r_nocull;
@@ -776,12 +775,6 @@ void R_RenderView (refdef_t *fd)
 	if (!r_worldmodel && !( r_newrefdef.rdflags & RDF_NOWORLDMODEL ) )
 		ri.Sys_Error (ERR_DROP, "R_RenderView: NULL worldmodel");
 
-	if (r_speeds->value)
-	{
-		c_brush_polys = 0;
-		c_alias_polys = 0;
-	}
-
 	R_PushDlights ();
 
 	R_SetupFrame ();
@@ -803,15 +796,6 @@ void R_RenderView (refdef_t *fd)
 	R_DrawAlphaSurfaces ();
 
 	R_Flash();
-
-	if (r_speeds->value)
-	{
-		ri.Con_Printf (PRINT_ALL, "%4i wpoly %4i epoly %i tex %i lmaps\n",
-			c_brush_polys, 
-			c_alias_polys, 
-			c_visible_textures, 
-			c_visible_lightmaps); 
-	}
 }
 
 
@@ -895,7 +879,6 @@ void R_Register( void )
 	r_novis = ri.Cvar_Get ("r_novis", "0", 0);
 	r_nocull = ri.Cvar_Get ("r_nocull", "0", 0);
 	r_refgl_lerpmodels = ri.Cvar_Get ("r_lerpmodels", "1", 0);
-	r_speeds = ri.Cvar_Get ("r_speeds", "0", 0);
 
 	r_lightlevel = ri.Cvar_Get ("r_lightlevel", "0", 0);
 

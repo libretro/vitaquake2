@@ -566,10 +566,8 @@ extern cvar_t   *sw_texfilt;
 extern cvar_t   *r_fullbright;
 extern cvar_t	*r_refsoft_lefthand;
 extern cvar_t   *r_refsoft_drawworld;
-extern cvar_t   *r_dspeeds;
 extern cvar_t   *r_refsoft_lerpmodels;
 
-extern cvar_t   *r_speeds;
 
 extern cvar_t   *r_refsoft_lightlevel;  //FIXME HACK
 
@@ -707,10 +705,6 @@ void R_DrawTriangle( void );
 void R_AliasClipTriangle (finalvert_t *index0, finalvert_t *index1, finalvert_t *index2);
 
 
-extern float    r_time1;
-extern float	da_time1, da_time2;
-extern float	dp_time1, dp_time2, db_time1, db_time2, rw_time1, rw_time2;
-extern float	se_time1, se_time2, de_time1, de_time2, dv_time1, dv_time2;
 extern int              r_frustum_indexes[4*6];
 extern int              r_maxsurfsseen, r_maxedgesseen, r_cnumsurfs;
 extern qboolean r_surfsonstack;
@@ -726,8 +720,6 @@ extern  image_t         *r_notexture_mip;
 extern  model_t         *r_refsoft_worldmodel;
 
 void R_PrintAliasStats (void);
-void R_PrintTimes (void);
-void R_PrintDSpeeds (void);
 void R_AnimateLight (void);
 void SWR_LightPoint (vec3_t p, vec3_t color);
 void SWR_SetupFrame (void);
