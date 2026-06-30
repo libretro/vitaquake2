@@ -69,7 +69,6 @@ dirty_t		scr_dirty, scr_old_dirty[2];
 char		crosshair_pic[MAX_QPATH];
 int			crosshair_width, crosshair_height;
 
-void SCR_TimeRefresh_f (void);
 void SCR_Loading_f (void);
 
 
@@ -425,7 +424,6 @@ void SCR_Init (void)
 //
 // register our commands
 //
-	Cmd_AddCommand ("timerefresh",SCR_TimeRefresh_f);
 	Cmd_AddCommand ("loading",SCR_Loading_f);
 	Cmd_AddCommand ("sizeup",SCR_SizeUp_f);
 	Cmd_AddCommand ("sizedown",SCR_SizeDown_f);
@@ -606,11 +604,6 @@ void SCR_Loading_f (void)
 	SCR_BeginLoadingPlaque ();
 }
 
-/*
-================
-SCR_TimeRefresh_f
-================
-*/
 int entitycmpfnc( const entity_t *a, const entity_t *b )
 {
 	/* all other models are sorted by model then skin */
@@ -624,44 +617,6 @@ int entitycmpfnc( const entity_t *a, const entity_t *b )
  		return (a->model == b->model) ? 0 :
 			(a->model > b->model) ? 1 : -1; 
 	}
-}
-
-void SCR_TimeRefresh_f (void)
-{
-	int		i;
-	int		start, stop;
-	float	time;
-
-	if ( cls.state != ca_active )
-		return;
-
-	start = Sys_Milliseconds ();
-
-	if (Cmd_Argc() == 2)
-	{	// run without page flipping
-		re.BeginFrame( 0 );
-		for (i=0 ; i<128 ; i++)
-		{
-			cl.refdef.viewangles[1] = i/128.0*360.0;
-			re.RenderFrame (&cl.refdef);
-		}
-		re.EndFrame();
-	}
-	else
-	{
-		for (i=0 ; i<128 ; i++)
-		{
-			cl.refdef.viewangles[1] = i/128.0*360.0;
-
-			re.BeginFrame( 0 );
-			re.RenderFrame (&cl.refdef);
-			re.EndFrame();
-		}
-	}
-
-	stop = Sys_Milliseconds ();
-	time = (stop-start)/1000.0;
-	Com_Printf ("%f seconds (%f fps)\n", time, 128/time);
 }
 
 /*
