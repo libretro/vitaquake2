@@ -1698,7 +1698,6 @@ CL_Frame
 void CL_Frame (int msec)
 {
 	static int	extratime;
-	static int  lasttimecalled;
 
 	if (dedicated->value)
 		return;
@@ -1759,26 +1758,6 @@ void CL_Frame (int msec)
 
 	cls.framecount++;
 
-	if ( log_stats->value )
-	{
-		if ( cls.state == ca_active )
-		{
-			if ( !lasttimecalled )
-			{
-				lasttimecalled = Sys_Milliseconds();
-				if ( log_stats_file )
-					rfprintf( log_stats_file, "0\n" );
-			}
-			else
-			{
-				int now = Sys_Milliseconds();
-
-				if ( log_stats_file )
-					rfprintf( log_stats_file, "%d\n", now - lasttimecalled );
-				lasttimecalled = now;
-			}
-		}
-	}
 }
 
 

@@ -755,10 +755,6 @@ float	crand(void);	// -1 to 1
 
 extern	cvar_t	*developer;
 extern	cvar_t	*dedicated;
-extern	cvar_t	*log_stats;
-
-extern	RFILE *log_stats_file;
-
 void Z_Free (void *ptr);
 void *Z_Malloc (int size);			// returns 0 filled memory
 void *Z_TagMalloc (int size, int tag);

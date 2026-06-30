@@ -38,9 +38,6 @@ int		realtime;
 jmp_buf abortframe;		// an ERR_DROP occured, exit the entire frame
 
 
-RFILE	*log_stats_file;
-
-cvar_t	*log_stats;
 cvar_t	*developer;
 cvar_t	*timescale;
 cvar_t	*fixedtime;
@@ -1476,7 +1473,6 @@ void Qcommon_Init (int argc, char **argv)
     Cmd_AddCommand ("z_stats", Z_Stats_f);
     Cmd_AddCommand ("error", Com_Error_f);
 
-	log_stats = Cvar_Get ("log_stats", "0", 0);
 	developer = Cvar_Get ("developer", "0", 0);
 	timescale = Cvar_Get ("timescale", "1", 0);
 	fixedtime = Cvar_Get ("fixedtime", "0", 0);
@@ -1534,30 +1530,6 @@ void Qcommon_Frame (int msec)
 
 	if (setjmp (abortframe) )
 		return;			// an ERR_DROP was thrown
-
-	if ( log_stats->modified )
-	{
-		log_stats->modified = false;
-		if ( log_stats->value )
-		{
-			if ( log_stats_file )
-			{
-				rfclose( log_stats_file );
-				log_stats_file = 0;
-			}
-			log_stats_file = rfopen( "stats.log", "w" );
-			if ( log_stats_file )
-				rfprintf( log_stats_file, "entities,dlights,parts,frame time\n" );
-		}
-		else
-		{
-			if ( log_stats_file )
-			{
-				rfclose( log_stats_file );
-				log_stats_file = 0;
-			}
-		}
-	}
 #ifndef __LIBRETRO__
 	if (fixedtime->value)
 		msec = fixedtime->value;
