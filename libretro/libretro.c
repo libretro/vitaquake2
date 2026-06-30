@@ -1111,6 +1111,14 @@ void Sys_SendKeyEvents (void)
       SET_BOUND_KEY_KB(KB_KEY_JUMP);
       SET_BOUND_KEY_KB(KB_KEY_CROUCH);
 
+      /* Tilde / backquote toggles the console. The console key is hardcoded in
+       * the engine (Key_Event), so feed Quake key '`' directly here -
+       * independent of the remappable action binds - whenever the keyboard
+       * device is active. Key_Event's autorepeat suppression debounces it to
+       * one toggle per physical press. */
+      Sys_SetKeys('`',
+            input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_BACKQUOTE) ? 1 : 0);
+
       /* Mouse input */
       Sys_SetKeys(input_binds_kb[KB_KEY_LAST].keynum,
             input_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT) ?
