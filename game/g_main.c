@@ -447,6 +447,7 @@ Load_BoxesOverlap(vec3_t amin, vec3_t amax, vec3_t bmin, vec3_t bmax)
 void
 Load_FreeStuckMovers(void)
 {
+	extern void door_go_down(edict_t *self); /* g_func.c: door auto-close think */
 	int i, c, k, chosen;
 	edict_t *m, *cl;
 	vec3_t relmin, relmax, cand[2], tmin, tmax;
@@ -523,6 +524,23 @@ Load_FreeStuckMovers(void)
 		m->moveinfo.current_speed = 0;
 		m->think = NULL;
 		m->nextthink = 0;
+
+		/* A door parked open (STATE_TOP) that auto-closes needs the close
+		 * think its arrival handler (door_hit_top) would have set: door_go_up's
+		 * "reset top wait" re-trigger path sets nextthink and assumes think is
+		 * door_go_down, so leaving it NULL makes a later trigger fire a NULL
+		 * think.  Give it that think but leave it UNSCHEDULED (nextthink stays
+		 * 0): the door stays parked open instead of dropping back onto the
+		 * just-freed player, and a later trigger lowers it cleanly through the
+		 * normal path.  DOOR_TOGGLE (32) doors close via use, not a timer. */
+		if (chosen == 0 && m->classname &&
+			(strcmp(m->classname, "func_door") == 0 ||
+			 strcmp(m->classname, "func_door_rotating") == 0) &&
+			!(m->spawnflags & 32) && m->moveinfo.wait >= 0)
+		{
+			m->think = door_go_down;
+		}
+
 		gi.linkentity(m);
 
 		/* detach any client that was riding/embedded in this mover */
