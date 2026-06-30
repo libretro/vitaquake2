@@ -508,6 +508,18 @@ extern int              cachewidth;
 extern pixel_t  *cacheblock;
 extern int              r_screenwidth;
 
+/* Truecolor (RGB565) sky overlay for the software renderer. The 8-bit
+ * rasterizer writes SKY_SENTINEL_INDEX into vid.buffer for visible sky
+ * pixels and the true 565 colour into sw_sky_overlay; the libretro output
+ * stage composites the overlay over the paletted frame. Everything stays
+ * integer/CPU so the path remains deterministic and headless-capable. */
+#define SKY_SENTINEL_INDEX 255
+extern unsigned short *sw_sky_overlay;   /* full-screen 565, parallel to vid.buffer */
+extern unsigned short *sw_sky565[6];     /* per-face 256x256 truecolor sky, NULL if none */
+extern unsigned short *sw_sky565_cur;    /* face currently being rasterized */
+extern int             sw_truecolor_sky_enabled;
+void D_DrawSkyOverlaySpans (espan_t *pspan);
+
 
 extern int      *sintable;
 extern int      *intsintable;

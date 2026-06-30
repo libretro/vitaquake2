@@ -47,6 +47,10 @@
 static bool first_boot = true;
 static qboolean gl_set = false;
 bool is_soft_render = false;
+/* Software renderer: composite a truecolor RGB565 sky over the paletted
+ * frame when env/<sky><suffix>.tga skies are present. Toggled by the
+ * vitaquakeii_sw_truecolor_sky core option. */
+int sw_truecolor_sky_enabled = 1;
 
 unsigned	sys_frame_time;
 int rumble_tick;
@@ -1664,6 +1668,14 @@ static void update_variables(bool startup)
             framerate_ms = 16;
             break;
       }
+
+      /* Software-renderer truecolor sky toggle (default on; no effect on GL
+       * or on skies that ship only as 8-bit PCX). */
+      var.key = "vitaquakeii_sw_truecolor_sky";
+      var.value = NULL;
+      sw_truecolor_sky_enabled =
+         (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value
+          && !strcmp(var.value, "disabled")) ? 0 : 1;
 
 #ifdef HAVE_OPENGL
       var.key = "vitaquakeii_renderer";

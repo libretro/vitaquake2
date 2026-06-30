@@ -905,6 +905,8 @@ void D_TurbulentSurf (surf_t *s)
 D_SkySurf
 ==============
 */
+extern mtexinfo_t r_skytexinfo[6];
+
 void D_SkySurf (surf_t *s)
 {
 	pface = s->msurf;
@@ -920,7 +922,35 @@ void D_SkySurf (surf_t *s)
 
 	D_CalcGradients (pface);
 
-	D_DrawSpans (s->spans);
+	/* Truecolor sky: when this face has an RGB565 texture loaded and we are
+	 * rendering straight into vid.buffer (not the underwater warp buffer, which
+	 * the overlay does not mirror), emit the sentinel + 565 overlay instead of
+	 * the paletted texels. Otherwise fall back to the normal 8-bit path. */
+	{
+		int face = -1;
+
+		if (sw_truecolor_sky_enabled && sw_sky_overlay
+		    && (pixel_t *)d_viewbuffer == vid.buffer)
+		{
+			int k;
+			for (k = 0 ; k < 6 ; k++)
+			{
+				if (r_skytexinfo[k].image == pface->texinfo->image)
+				{
+					face = k;
+					break;
+				}
+			}
+		}
+
+		if (face >= 0 && sw_sky565[face])
+		{
+			sw_sky565_cur = sw_sky565[face];
+			D_DrawSkyOverlaySpans (s->spans);
+		}
+		else
+			D_DrawSpans (s->spans);
+	}
 
 // set up a gradient for the background surface that places it
 // effectively at infinity distance from the viewpoint

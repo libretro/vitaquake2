@@ -174,6 +174,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "opengl"
    },
    {
+      "vitaquakeii_sw_truecolor_sky",
+      "[Software] Truecolor Sky",
+      NULL,
+      "Composite a high-colour RGB565 sky over the paletted frame when truecolor env/*.tga skybox textures are present. Has no effect on the OpenGL renderer or on skies that ship only as 8-bit PCX.",
+      NULL,
+      NULL,
+      {
+         { "enabled",  "Enabled" },
+         { "disabled", "Disabled" },
+         { NULL, NULL },
+      },
+      "enabled"
+   },
+   {
       "vitaquakeii_gl_modulate",
       "[GL] Brightness (Restart)",
       NULL,

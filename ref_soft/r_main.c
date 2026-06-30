@@ -1268,6 +1268,14 @@ extern char *suf[6];
 int	r_skysideimage[6] = {5, 2, 4, 1, 0, 3};
 extern	mtexinfo_t		r_skytexinfo[6];
 
+/* Truecolor (RGB565) sky, built from env/<sky><suffix>.tga when present.
+ * Aligned 1:1 with the 8-bit sky textures (256x256, cachewidth 256) so the
+ * rasterizer can sample it with the same texcoords. NULL faces fall back to
+ * the paletted PCX path, preserving the original behaviour. */
+unsigned short *sw_sky565[6] = { 0, 0, 0, 0, 0, 0 };
+unsigned short *sw_sky565_cur = NULL;
+extern void LoadTGA (char *name, byte **pic, int *width, int *height);
+
 static void SWR_SetSky (char *name, float rotate, vec3_t axis)
 {
 	int		i;
@@ -1279,8 +1287,41 @@ static void SWR_SetSky (char *name, float rotate, vec3_t axis)
 
 	for (i=0 ; i<6 ; i++)
 	{
+		if (sw_sky565[i])
+		{
+			free (sw_sky565[i]);
+			sw_sky565[i] = NULL;
+		}
+
 		Com_sprintf (pathname, sizeof(pathname), "env/%s%s.pcx", skyname, suf[r_skysideimage[i]]);
 		r_skytexinfo[i].image = R_FindImage (pathname, it_sky);
+
+		/* Try a matching truecolor TGA for a high-colour overlay. A missing
+		 * or non-256x256 image simply leaves this face on the paletted path. */
+		{
+			byte	*pic = NULL;
+			int	 w = 0, h = 0;
+
+			Com_sprintf (pathname, sizeof(pathname), "env/%s%s.tga", skyname, suf[r_skysideimage[i]]);
+			LoadTGA (pathname, &pic, &w, &h);
+			if (pic && w == 256 && h == 256)
+			{
+				int	n = w * h, p;
+				unsigned short *dst = (unsigned short*)malloc ((size_t)n * sizeof(unsigned short));
+
+				for (p = 0 ; p < n ; p++)
+				{
+					int r = pic[p*4+0];
+					int g = pic[p*4+1];
+					int b = pic[p*4+2];
+					dst[p] = (unsigned short)
+					         ((((r>>3)&0x1f)<<11) | (((g>>2)&0x3f)<<5) | ((b>>3)&0x1f));
+				}
+				sw_sky565[i] = dst;
+			}
+			if (pic)
+				free (pic);
+		}
 	}
 }
 

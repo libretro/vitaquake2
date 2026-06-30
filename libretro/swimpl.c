@@ -13,6 +13,10 @@ extern void    *sw_present_target;
 extern unsigned sw_present_pitch;
 extern int      sw_present_active;
 
+/* Truecolor (RGB565) sky overlay, allocated parallel to vid.buffer. */
+unsigned short *sw_sky_overlay = NULL;
+extern int      sw_truecolor_sky_enabled;
+
 void VID_NewWindow (int width, int height);
 
 void SWimp_BeginFrame( float camera_separation )
@@ -22,6 +26,7 @@ void SWimp_BeginFrame( float camera_separation )
 void SWimp_EndFrame (void)
 {
 	const pixel_t *src = vid.buffer;
+	unsigned short *ovl = sw_sky_overlay;
 
 	if (sw_present_target)
 	{
@@ -33,8 +38,26 @@ void SWimp_EndFrame (void)
 			uint16_t      *dst = (uint16_t *)((uint8_t *)sw_present_target
 			                                  + (size_t)y * sw_present_pitch);
 			const pixel_t *s   = src + (size_t)y * scr_width;
+			unsigned short *o  = ovl ? ovl + (size_t)y * scr_width : NULL;
 			for (x = 0; x < scr_width; x++)
+			{
+				/* Sky pixels carry the sentinel index in vid.buffer and a
+				 * non-zero 565 sample in the overlay; anything drawn over the
+				 * sky (geometry, models, HUD) overwrites the sentinel so it
+				 * falls through to the paletted path. The overlay slot is
+				 * cleared as it is read (fused per-frame reset). */
+				if (o)
+				{
+					unsigned short v = o[x];
+					o[x] = 0;
+					if (s[x] == SKY_SENTINEL_INDEX && v != 0)
+					{
+						dst[x] = v;
+						continue;
+					}
+				}
 				dst[x] = palette_tbl[s[x]];
+			}
 		}
 		sw_present_active = 1;
 	}
@@ -44,7 +67,19 @@ void SWimp_EndFrame (void)
 		uint16_t *dst = (uint16_t*)tex_buffer;
 		int i, n = scr_width * scr_height;
 		for (i = 0; i < n; i++)
+		{
+			if (ovl)
+			{
+				unsigned short v = ovl[i];
+				ovl[i] = 0;
+				if (src[i] == SKY_SENTINEL_INDEX && v != 0)
+				{
+					dst[i] = v;
+					continue;
+				}
+			}
 			dst[i] = palette_tbl[src[i]];
+		}
 	}
 }
 
@@ -91,6 +126,11 @@ void		SWimp_Shutdown( void )
 		free(tex_buffer);
 		tex_buffer = NULL;
 	}
+	if (sw_sky_overlay)
+	{
+		free(sw_sky_overlay);
+		sw_sky_overlay = NULL;
+	}
 }
 
 rserr_t		SWimp_SetMode( int *pwidth, int *pheight, int mode )
@@ -103,6 +143,7 @@ rserr_t		SWimp_SetMode( int *pwidth, int *pheight, int mode )
 	vid.buffer = malloc(scr_width*scr_height);
 	
 	tex_buffer = calloc((size_t)scr_width*scr_height, sizeof(uint16_t));
+	sw_sky_overlay = (unsigned short*)calloc((size_t)scr_width*scr_height, sizeof(unsigned short));
 	
 	SWimp_SetPalette((const unsigned char*)start_palette);
 	
