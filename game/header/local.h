@@ -785,6 +785,7 @@ void G_RunEntity(edict_t *ent);
 
 /* g_main.c */
 void SaveClientData(void);
+void Load_FreeStuckMovers(void);
 void FetchClientEntData(edict_t *ent);
 
 /* g_chase.c */

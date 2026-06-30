@@ -1208,4 +1208,9 @@ ReadLevel(const char *filename)
 			}
 		}
 	}
+
+	/* A savegame can capture a client embedded in a mid-move pushing mover,
+	   which deadlocks and crushes the player on the first frame after load.
+	   Resolve any such case before the world resumes. */
+	Load_FreeStuckMovers();
 }

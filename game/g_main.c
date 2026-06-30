@@ -381,6 +381,164 @@ ExitLevel(void)
 }
 
 /*
+ * True only when two boxes interpenetrate by more than a small margin on every
+ * axis - i.e. one is genuinely embedded in the other, not merely resting on a
+ * face. A client riding on a platform touches its top but does not penetrate,
+ * so it is not treated as embedded.
+ */
+static qboolean
+Load_BoxesEmbedded(vec3_t amin, vec3_t amax, vec3_t bmin, vec3_t bmax)
+{
+	float lo, hi;
+	int j;
+
+	for (j = 0; j < 3; j++)
+	{
+		lo = (amin[j] > bmin[j]) ? amin[j] : bmin[j];
+		hi = (amax[j] < bmax[j]) ? amax[j] : bmax[j];
+
+		if ((hi - lo) <= 4.0f)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+/*
+ * Returns true when the two boxes overlap at all (touching counts).
+ */
+static qboolean
+Load_BoxesOverlap(vec3_t amin, vec3_t amax, vec3_t bmin, vec3_t bmax)
+{
+	if ((amin[0] > bmax[0]) || (amax[0] < bmin[0]))
+	{
+		return false;
+	}
+
+	if ((amin[1] > bmax[1]) || (amax[1] < bmin[1]))
+	{
+		return false;
+	}
+
+	if ((amin[2] > bmax[2]) || (amax[2] < bmin[2]))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+/*
+ * A savegame can capture a pushing mover (for example a vertically closing
+ * blast-door) mid-move with its brush embedded in a client. On the next frame
+ * the pusher deadlocks: it cannot advance without the client solid, and cannot
+ * reverse because the client is buried inside it - so it crushes the player to
+ * death (this is the Lost Station "stuck in the door and die on load" bug). In
+ * that situation the player is usually penned in with nowhere to step, but the
+ * mover itself has clear rest positions (open / closed). Snap any such mover to
+ * whichever endpoint frees the embedded client so the level resumes cleanly.
+ *
+ * The detection requires genuine embedding (not a rider resting on a surface),
+ * and a snap is only taken to an endpoint that demonstrably clears every
+ * client, so a normal load - and a legitimately ridden platform - is untouched.
+ */
+void
+Load_FreeStuckMovers(void)
+{
+	int i, c, k, chosen;
+	edict_t *m, *cl;
+	vec3_t relmin, relmax, cand[2], tmin, tmax;
+	qboolean hit, clears;
+
+	for (i = (int)maxclients->value + 1; i < globals.num_edicts; i++)
+	{
+		m = &g_edicts[i];
+
+		if (!m->inuse || (m->movetype != MOVETYPE_PUSH) || !m->blocked)
+		{
+			continue; /* only solid pushers that can crush */
+		}
+
+		hit = false;
+
+		for (c = 1; c <= (int)maxclients->value; c++)
+		{
+			cl = &g_edicts[c];
+
+			if (cl->inuse && cl->client &&
+				Load_BoxesEmbedded(m->absmin, m->absmax, cl->absmin, cl->absmax))
+			{
+				hit = true;
+				break;
+			}
+		}
+
+		if (!hit)
+		{
+			continue;
+		}
+
+		/* brush bbox relative to the mover's current s.origin */
+		VectorSubtract(m->absmin, m->s.origin, relmin);
+		VectorSubtract(m->absmax, m->s.origin, relmax);
+		VectorCopy(m->moveinfo.end_origin, cand[0]);   /* open   */
+		VectorCopy(m->moveinfo.start_origin, cand[1]); /* closed */
+
+		chosen = -1;
+
+		for (k = 0; (k < 2) && (chosen < 0); k++)
+		{
+			VectorAdd(relmin, cand[k], tmin);
+			VectorAdd(relmax, cand[k], tmax);
+			clears = true;
+
+			for (c = 1; c <= (int)maxclients->value; c++)
+			{
+				cl = &g_edicts[c];
+
+				if (cl->inuse && cl->client &&
+					Load_BoxesOverlap(tmin, tmax, cl->absmin, cl->absmax))
+				{
+					clears = false;
+					break;
+				}
+			}
+
+			if (clears)
+			{
+				chosen = k;
+			}
+		}
+
+		if (chosen < 0)
+		{
+			continue; /* neither endpoint frees the client; leave it be */
+		}
+
+		VectorCopy(cand[chosen], m->s.origin);
+		VectorClear(m->velocity);
+		m->moveinfo.state = (chosen == 0) ? 0 /* STATE_TOP */ : 1 /* STATE_BOTTOM */;
+		m->moveinfo.current_speed = 0;
+		m->think = NULL;
+		m->nextthink = 0;
+		gi.linkentity(m);
+
+		/* detach any client that was riding/embedded in this mover */
+		for (c = 1; c <= (int)maxclients->value; c++)
+		{
+			cl = &g_edicts[c];
+
+			if (cl->inuse && (cl->groundentity == m))
+			{
+				cl->groundentity = NULL;
+			}
+		}
+	}
+}
+
+/*
  * Advances the world by 0.1 seconds
  */
 void
