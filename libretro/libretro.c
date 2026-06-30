@@ -2691,7 +2691,6 @@ qboolean SNDDMA_Init(void)
    dma.channels         = 2;
    dma.samples          = AUDIO_BUFFER_SIZE;
    dma.samplepos        = 0;
-   dma.submission_chunk = 1;
    dma.buffer           = (byte *)audio_buffer;
 
    /* Persisted music volume, set from the "music volume" Options-menu slider.

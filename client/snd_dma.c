@@ -100,7 +100,6 @@ void S_SoundInfo_f(void)
     Com_Printf("%5d samples\n", dma.samples);
     Com_Printf("%5d samplepos\n", dma.samplepos);
     Com_Printf("%5d samplebits\n", dma.samplebits);
-    Com_Printf("%5d submission_chunk\n", dma.submission_chunk);
     Com_Printf("%5d speed\n", dma.speed);
     Com_Printf("0x%x dma buffer\n", dma.buffer);
 }
