@@ -49,7 +49,7 @@ static qboolean gl_set = false;
 bool is_soft_render = false;
 
 unsigned	sys_frame_time;
-uint64_t rumble_tick;
+int rumble_tick;
 void *tex_buffer = NULL;
 
 /* Software-renderer present target. When the frontend offers a software
@@ -786,7 +786,7 @@ static bool in_retro_deinit = false;
 
 netadr_t	net_local_adr;
 
-extern uint64_t rumble_tick;
+extern int rumble_tick;
 
 int scr_width = 960;
 int scr_height = 544;
@@ -2449,7 +2449,7 @@ void retro_run(void)
    }
 
    if (rumble_tick != 0)
-      if (cpu_features_get_time_usec() - rumble_tick > 500000)
+      if (curtime - rumble_tick > 500)
          IN_StopRumble(); /* 0.5 sec */
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
@@ -3207,7 +3207,7 @@ void IN_Init (void)
    use_gyro = Cvar_Get ("use_gyro", "0", CVAR_ARCHIVE);
    pstv_rumble	= Cvar_Get ("pstv_rumble", "1",	CVAR_ARCHIVE);
 
-   rumble_tick = cpu_features_get_time_usec();
+   rumble_tick = curtime;
 }
 
 void IN_Shutdown (void)
@@ -3231,7 +3231,7 @@ void IN_StartRumble (void)
       return;
 
    rumble.set_rumble_state(0, RETRO_RUMBLE_STRONG, strength_strong);
-   rumble_tick = cpu_features_get_time_usec();
+   rumble_tick = curtime;
 }
 
 void IN_StopRumble (void)
