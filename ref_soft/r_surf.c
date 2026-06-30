@@ -28,6 +28,8 @@ int				lightdelta, lightdeltastep;
 int				lightright, lightleftstep, lightrightstep, blockdivshift;
 unsigned		blockdivmask;
 void			*prowdestbase;
+unsigned short	*prowdest565base;
+unsigned short	*cacheblock565;
 unsigned char	*pbasesource;
 int				surfrowbytes;	// used by ASM files
 unsigned		*r_lightptr;
@@ -107,6 +109,7 @@ void R_DrawSurface (void)
 	int				soffset, basetoffset, texwidth;
 	int				horzblockstep;
 	unsigned char	*pcolumndest;
+	unsigned short	*pcolumndest565;
 	void			(*pblockdrawer)(void);
 	image_t			*mt;
 	int				colored;
@@ -160,12 +163,14 @@ void R_DrawSurface (void)
 		+ (tmax << 16)) % tmax) * twidth)];
 
 	pcolumndest = r_drawsurf.surfdat;
+	pcolumndest565 = r_drawsurf.surfdat565;
 
 	for (u=0 ; u<r_numhblocks; u++)
 	{
 		r_lightptr = blocklights + (colored ? u*3 : u);
 
 		prowdestbase = pcolumndest;
+		prowdest565base = pcolumndest565;	/* NULL unless colored */
 
 		pbasesource = basetptr + soffset;
 
@@ -176,6 +181,8 @@ void R_DrawSurface (void)
 			soffset = 0;
 
 		pcolumndest += horzblockstep;
+		if (pcolumndest565)
+			pcolumndest565 += horzblockstep;
 	}
 }
 
@@ -399,6 +406,7 @@ static void R_DrawSurfaceBlockRGB (int shift)
 {
 	int				v, i, b, bw;
 	unsigned char	pix, *psource, *prowdest, *pix24;
+	unsigned short	*prowdest565;
 	int				lleft[3], lright[3], lleftstep[3], lrightstep[3];
 	int				light[3], lstep[3];
 	int				tr, tg, tb;
@@ -406,6 +414,7 @@ static void R_DrawSurfaceBlockRGB (int shift)
 	bw = 1 << shift;
 	psource = pbasesource;
 	prowdest = prowdestbase;
+	prowdest565 = prowdest565base;	/* NULL unless this surface is colored */
 
 	for (v=0 ; v<r_numvblocks ; v++)
 	{
@@ -428,12 +437,19 @@ static void R_DrawSurfaceBlockRGB (int shift)
 
 			for (b=bw-1 ; b>=0 ; b--)
 			{
+				/* 8bit intermediate keeps two extra low bits over the 6bit
+				 * palmap index so the same multiply feeds both the palette
+				 * snap (>>2) and the RGB565 pack, and the 8bit cache stays
+				 * byte-identical to the palette-only colored path. */
 				pix = psource[b];
 				pix24 = (unsigned char *)&d_refsoft_8to24table[pix];
-				tr = (pix24[0] * light[0]) >> 17; if (tr < 0) tr = 0; else if (tr > 63) tr = 63;
-				tg = (pix24[1] * light[1]) >> 17; if (tg < 0) tg = 0; else if (tg > 63) tg = 63;
-				tb = (pix24[2] * light[2]) >> 17; if (tb < 0) tb = 0; else if (tb > 63) tb = 63;
-				prowdest[b] = palmap2[tr][tg][tb];
+				tr = (pix24[0] * light[0]) >> 15; if (tr < 0) tr = 0; else if (tr > 255) tr = 255;
+				tg = (pix24[1] * light[1]) >> 15; if (tg < 0) tg = 0; else if (tg > 255) tg = 255;
+				tb = (pix24[2] * light[2]) >> 15; if (tb < 0) tb = 0; else if (tb > 255) tb = 255;
+				prowdest[b] = palmap2[tr >> 2][tg >> 2][tb >> 2];
+				if (prowdest565)
+					prowdest565[b] = (unsigned short)
+						(((tb >> 3) & 0x1f) | (((tg >> 2) & 0x3f) << 5) | (((tr >> 3) & 0x1f) << 11));
 				light[0] += lstep[0];
 				light[1] += lstep[1];
 				light[2] += lstep[2];
@@ -444,6 +460,8 @@ static void R_DrawSurfaceBlockRGB (int shift)
 			lright[1] += lrightstep[1]; lleft[1] += lleftstep[1];
 			lright[2] += lrightstep[2]; lleft[2] += lleftstep[2];
 			prowdest += surfrowbytes;
+			if (prowdest565)
+				prowdest565 += surfrowbytes;
 		}
 
 		if (psource >= r_sourcemax)
@@ -481,7 +499,7 @@ void R_InitCaches (void)
 
 		pix = vid.width*vid.height;
 		if (pix > 64000)
-			size += (pix-64000)*3;
+			size += (pix-64000)*6;	/* extra room for the parallel RGB565 colored-light cache */
 	}		
 
 	// round up to page size
@@ -536,7 +554,7 @@ surfcache_t     *D_SCAlloc (int width, int size)
 	if ((width < 0) || (width > 256))
 		ri.Sys_Error (ERR_FATAL,"D_SCAlloc: bad cache width %d\n", width);
 
-	if ((size <= 0) || (size > 0x10000))
+	if ((size <= 0) || (size > 0x30000))
 		ri.Sys_Error (ERR_FATAL,"D_SCAlloc: bad cache size %d\n", size);
 	
 	size = (int)(size_t)&((surfcache_t *)0)->data[size];
@@ -699,13 +717,23 @@ surfcache_t *D_CacheSurface (msurface_t *surface, int miplevel)
 //
 // allocate memory if needed
 //
-	if (!cache)     // if a texture just animated, don't reallocate it
 	{
-		cache = D_SCAlloc (r_drawsurf.surfwidth,
-						   r_drawsurf.surfwidth * r_drawsurf.surfheight);
-		surface->cachespots[miplevel] = cache;
-		cache->owner = &surface->cachespots[miplevel];
-		cache->mipscale = surfscale;
+		int surfcolored = sw_colored_lighting_enabled && surface->samples_rgb
+		                  && r_refsoft_worldmodel->lightdata && !r_fullbright->value;
+		int texels = r_drawsurf.surfwidth * r_drawsurf.surfheight;
+
+		if (!cache)     // if a texture just animated, don't reallocate it
+		{
+			/* colored surfaces carry an 8bit palette-snapped block (warp/alpha
+			 * fallback) immediately followed by a parallel RGB565 block. */
+			cache = D_SCAlloc (r_drawsurf.surfwidth,
+							   surfcolored ? texels * 3 : texels);
+			surface->cachespots[miplevel] = cache;
+			cache->owner = &surface->cachespots[miplevel];
+			cache->mipscale = surfscale;
+		}
+		cache->colored = surfcolored;
+		cache->texels  = texels;
 	}
 	
 	if (surface->dlightframe == r_framecount)
@@ -714,6 +742,10 @@ surfcache_t *D_CacheSurface (msurface_t *surface, int miplevel)
 		cache->dlight = 0;
 
 	r_drawsurf.surfdat = (pixel_t *)cache->data;
+	r_drawsurf.surfdat565 = cache->colored
+		? (unsigned short *)(cache->data
+		                     + r_drawsurf.surfwidth * r_drawsurf.surfheight)
+		: NULL;
 	
 	cache->image = r_drawsurf.image;
 	cache->lightadj[0] = r_drawsurf.lightadj[0];

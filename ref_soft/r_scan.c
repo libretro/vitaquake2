@@ -699,6 +699,129 @@ void D_DrawSkyOverlaySpans (espan_t *pspan)
 	} while ((pspan = pspan->pnext) != NULL);
 }
 
+/*
+=============
+D_DrawSpansRGB
+
+Colored-lighting variant of D_DrawSpans16. Identical perspective-correct
+texcoord stepping, but instead of an 8-bit palette index it stamps the sky
+overlay sentinel into the paletted view buffer and the matching RGB565 sample
+(from cacheblock565, the parallel truecolor surface cache) into the overlay.
+The libretro output stage composites the overlay over the paletted frame. A
+565 value of 0 is nudged to 1 so it can never collide with the overlay's
+cleared state. Used for world surfaces only when rendering straight into
+vid.buffer; the warp/underwater path falls back to the 8-bit palette cache.
+=============
+*/
+void D_DrawSpansRGB (espan_t *pspan)
+{
+	unsigned short  *pbase565 = cacheblock565;
+	byte            *pdest;
+	unsigned short  *povl;
+	fixed16_t        s, t, snext, tnext, sstep, tstep;
+	float            sdivz, tdivz, zi, z, du, dv, spancountminus1;
+	float            sdivzstepu, tdivzstepu, zistepu;
+	int              count, spancount, i;
+
+	sstep = 0;
+	tstep = 0;
+
+	sdivzstepu = d_sdivzstepu * 16;
+	tdivzstepu = d_tdivzstepu * 16;
+	zistepu    = d_zistepu * 16;
+
+	do
+	{
+		int ofs = (r_screenwidth * pspan->v) + pspan->u;
+		pdest = (byte *)d_viewbuffer + ofs;
+		povl  = sw_sky_overlay + ofs;
+
+		count     = pspan->count >> 4;
+		spancount = pspan->count % 16;
+
+		du = (float)pspan->u;
+		dv = (float)pspan->v;
+
+		sdivz = d_sdivzorigin + dv*d_sdivzstepv + du*d_sdivzstepu;
+		tdivz = d_tdivzorigin + dv*d_tdivzstepv + du*d_tdivzstepu;
+		zi = d_ziorigin + dv*d_zistepv + du*d_zistepu;
+		z = (float)0x10000 / zi;
+
+		s = (int)(sdivz * z) + sadjust;
+		if (s < 0) s = 0;
+		else if (s > bbextents) s = bbextents;
+
+		t = (int)(tdivz * z) + tadjust;
+		if (t < 0) t = 0;
+		else if (t > bbextentt) t = bbextentt;
+
+		while (count-- > 0)
+		{
+			sdivz += sdivzstepu;
+			tdivz += tdivzstepu;
+			zi += zistepu;
+			z = (float)0x10000 / zi;
+
+			snext = (int)(sdivz * z) + sadjust;
+			if (snext < 16) snext = 16;
+			else if (snext > bbextents) snext = bbextents;
+
+			tnext = (int)(tdivz * z) + tadjust;
+			if (tnext < 16) tnext = 16;
+			else if (tnext > bbextentt) tnext = bbextentt;
+
+			sstep = (snext - s) >> 4;
+			tstep = (tnext - t) >> 4;
+
+			for (i = 0 ; i < 16 ; i++)
+			{
+				unsigned short c = pbase565[(s >> 16) + (t >> 16) * cachewidth];
+				povl[i]  = c ? c : 1;
+				pdest[i] = SKY_SENTINEL_INDEX;
+				s += sstep;
+				t += tstep;
+			}
+			pdest += 16;
+			povl  += 16;
+
+			s = snext;
+			t = tnext;
+		}
+
+		if (spancount > 0)
+		{
+			spancountminus1 = (float)(spancount - 1);
+			sdivz += d_sdivzstepu * spancountminus1;
+			tdivz += d_tdivzstepu * spancountminus1;
+			zi += d_zistepu * spancountminus1;
+			z = (float)0x10000 / zi;
+
+			snext = (int)(sdivz * z) + sadjust;
+			if (snext < 16) snext = 16;
+			else if (snext > bbextents) snext = bbextents;
+
+			tnext = (int)(tdivz * z) + tadjust;
+			if (tnext < 16) tnext = 16;
+			else if (tnext > bbextentt) tnext = bbextentt;
+
+			if (spancount > 1)
+			{
+				sstep = (snext - s) / (spancount - 1);
+				tstep = (tnext - t) / (spancount - 1);
+			}
+
+			for (i = 0 ; i < spancount ; i++)
+			{
+				unsigned short c = pbase565[(s >> 16) + (t >> 16) * cachewidth];
+				povl[i]  = c ? c : 1;
+				pdest[i] = SKY_SENTINEL_INDEX;
+				s += sstep;
+				t += tstep;
+			}
+		}
+	} while ((pspan = pspan->pnext) != NULL);
+}
+
 extern surfcache_t		*pcurrentcache;
 void D_DrawSpans16_Dither (espan_t *pspan) //qbism up it from 8 to 16. This + unroll = big speed gain!
 {

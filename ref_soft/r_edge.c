@@ -1027,7 +1027,18 @@ void D_SolidSurf (surf_t *s)
 
 	D_CalcGradients (pface);
 
-	D_DrawSpans (s->spans);
+	/* Colored surfaces carry a parallel RGB565 cache. When rendering straight
+	 * into vid.buffer (not the underwater warp buffer, which the overlay does
+	 * not mirror), emit sentinel + 565 overlay; otherwise fall back to the
+	 * 8-bit palette-snapped cache. */
+	if (pcurrentcache->colored && sw_sky_overlay
+	    && (pixel_t *)d_viewbuffer == vid.buffer)
+	{
+		cacheblock565 = (unsigned short *)(pcurrentcache->data + pcurrentcache->texels);
+		D_DrawSpansRGB (s->spans);
+	}
+	else
+		D_DrawSpans (s->spans);
 
 	D_DrawZSpans (s->spans);
 

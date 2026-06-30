@@ -315,6 +315,7 @@ typedef struct
 typedef struct
 {
 	byte            *surfdat;       // destination for generated surface
+	unsigned short  *surfdat565;    // parallel RGB565 destination (colored lighting), NULL otherwise
 	int                     rowbytes;       // destination logical width in bytes
 	msurface_t      *surf;          // description for surface to generate
 	fixed8_t        lightadj[MAXLIGHTMAPS];
@@ -365,7 +366,9 @@ typedef struct surfcache_s
 	unsigned                        height;         // DEBUG only needed for debug
 	float                           mipscale;
 	image_t							*image;
-	byte                            data[4];        // width*height elements
+	int                             colored;        // surface carries a parallel RGB565 cache
+	int                             texels;         // 8bit block size in texels (RGB565 block starts at data+texels)
+	byte                            data[4];        // width*height 8bit texels, then (when colored) width*height RGB565
 } surfcache_t;
 
 // !!! if this is changed, it must be changed in asm_draw.h too !!!
@@ -517,6 +520,8 @@ extern int              r_screenwidth;
 extern unsigned short *sw_sky_overlay;   /* full-screen 565, parallel to vid.buffer */
 extern unsigned short *sw_sky565[6];     /* per-face 256x256 truecolor sky, NULL if none */
 extern unsigned short *sw_sky565_cur;    /* face currently being rasterized */
+extern unsigned short *cacheblock565;    /* RGB565 surface cache for the current colored surface */
+void D_DrawSpansRGB (espan_t *pspan);    /* colored-light span drawer: writes sentinel + 565 overlay */
 extern int             sw_truecolor_sky_enabled;
 void D_DrawSkyOverlaySpans (espan_t *pspan);
 
