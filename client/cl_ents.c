@@ -1231,7 +1231,6 @@ void CL_AddPacketEntities (frame_t *frame)
 					float intensity;
 
 					intensity = 50 + (500 * (sin(cl.time/500.0) + 1.0));
-					// FIXME - check out this effect in rendition
 					if(vidref_val == VIDREF_GL)
 						V_AddLight (ent.origin, intensity, -1.0, -1.0, -1.0);
 					else
@@ -1246,7 +1245,6 @@ void CL_AddPacketEntities (frame_t *frame)
 			else if (effects & EF_TRACKER)
 			{
 				CL_TrackerTrail (cent->lerp_origin, ent.origin, 0);
-				// FIXME - check out this effect in rendition
 				if(vidref_val == VIDREF_GL)
 					V_AddLight (ent.origin, 200, -1, -1, -1);
 				else
