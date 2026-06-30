@@ -86,6 +86,40 @@ void R_DrawSpanletOpaque( void )
 }
 
 /*
+** SW_ResolveBlendDest
+**
+** Translucent surfaces blend against whatever is already in vid.buffer. Colored
+** world surfaces and the truecolor sky stamp the sky sentinel (255) into
+** vid.buffer and keep the real colour in the parallel RGB565 overlay, so a blend
+** that read the raw sentinel would mix against palette[255] instead of the
+** surface behind it -- water over colored geometry turns near-black. Recover the
+** real backdrop colour from the overlay, snapping 565 -> nearest palette index
+** through palmap2 (always built at palette load). Sentinels with no overlay
+** sample (e.g. an index-255 model texel) are left unchanged. Only valid while
+** rendering straight into vid.buffer; the underwater warp buffer carries no
+** sentinels and is not mirrored by the overlay.
+*/
+static pixel_t SW_ResolveBlendDest( pixel_t *pdest )
+{
+	pixel_t d = *pdest;
+
+	if ( d == SKY_SENTINEL_INDEX && sw_sky_overlay && d_viewbuffer == vid.buffer )
+	{
+		unsigned short v = sw_sky_overlay[pdest - vid.buffer];
+
+		if ( v )
+		{
+			int r = (v >> 11) & 0x1f;
+			int g = (v >> 5)  & 0x3f;
+			int b =  v        & 0x1f;
+			d = palmap2[(r << 1) | (r >> 4)][g][(b << 1) | (b >> 4)];
+		}
+	}
+
+	return d;
+}
+
+/*
 ** R_DrawSpanletTurbulentStipple33
 */
 void R_DrawSpanletTurbulentStipple33( void )
@@ -245,7 +279,7 @@ void R_DrawSpanletTurbulentBlended66( void )
 		btemp = *( s_spanletvars.pbase + ( sturb ) + ( tturb << 6 ) );
 
 		if ( *s_spanletvars.pz <= ( s_spanletvars.izi >> 16 ) )
-			*s_spanletvars.pdest = vid.alphamap[btemp*256+*s_spanletvars.pdest];
+			*s_spanletvars.pdest = vid.alphamap[btemp*256+SW_ResolveBlendDest(s_spanletvars.pdest)];
 
 		s_spanletvars.izi += s_spanletvars.izistep;
 		s_spanletvars.pdest++;
@@ -269,7 +303,7 @@ void R_DrawSpanletTurbulentBlended33( void )
 		btemp = *( s_spanletvars.pbase + ( sturb ) + ( tturb << 6 ) );
 
 		if ( *s_spanletvars.pz <= ( s_spanletvars.izi >> 16 ) )
-			*s_spanletvars.pdest = vid.alphamap[btemp+*s_spanletvars.pdest*256];
+			*s_spanletvars.pdest = vid.alphamap[btemp+SW_ResolveBlendDest(s_spanletvars.pdest)*256];
 
 		s_spanletvars.izi += s_spanletvars.izistep;
 		s_spanletvars.pdest++;
@@ -300,7 +334,7 @@ void R_DrawSpanlet33( void )
 		{
 			if (*s_spanletvars.pz <= (s_spanletvars.izi >> 16))
 			{
-				*s_spanletvars.pdest = vid.alphamap[btemp+*s_spanletvars.pdest*256];
+				*s_spanletvars.pdest = vid.alphamap[btemp+SW_ResolveBlendDest(s_spanletvars.pdest)*256];
 			}
 		}
 
@@ -318,7 +352,7 @@ void R_DrawSpanletConstant33( void )
 	{
 		if (*s_spanletvars.pz <= (s_spanletvars.izi >> 16))
 		{
-			*s_spanletvars.pdest = vid.alphamap[r_polyblendcolor+*s_spanletvars.pdest*256];
+			*s_spanletvars.pdest = vid.alphamap[r_polyblendcolor+SW_ResolveBlendDest(s_spanletvars.pdest)*256];
 		}
 
 		s_spanletvars.izi += s_spanletvars.izistep;
@@ -347,7 +381,7 @@ void R_DrawSpanlet66( void )
 		{
 			if (*s_spanletvars.pz <= (s_spanletvars.izi >> 16))
 			{
-				*s_spanletvars.pdest = vid.alphamap[btemp*256+*s_spanletvars.pdest];
+				*s_spanletvars.pdest = vid.alphamap[btemp*256+SW_ResolveBlendDest(s_spanletvars.pdest)];
 			}
 		}
 
