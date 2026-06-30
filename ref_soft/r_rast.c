@@ -39,7 +39,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 uintptr_t	cacheoffset;
 
-int			c_faceclip;					// number of faces clipped
 
 
 clipplane_t	*entity_clipplanes;
@@ -564,7 +563,6 @@ void R_RenderFace (msurface_t *fa, int clipflags)
 		return;
 	}
 
-	c_faceclip++;
 
 // set up clip planes
 	pclip = NULL;
@@ -705,7 +703,6 @@ void R_RenderFace (msurface_t *fa, int clipflags)
 	if (!r_emitted)
 		return;
 
-	r_polycount++;
 
 	surface_p->msurf = fa;
 	surface_p->nearzi = r_nearzi;
@@ -768,7 +765,6 @@ void R_RenderBmodelFace (bedge_t *pedges, msurface_t *psurf)
 		return;
 	}
 
-	c_faceclip++;
 
 // this is a dummy to give the caching mechanism someplace to write to
 	r_pedge = &tedge;
@@ -826,7 +822,6 @@ void R_RenderBmodelFace (bedge_t *pedges, msurface_t *psurf)
 	if (!r_emitted)
 		return;
 
-	r_polycount++;
 
 	surface_p->msurf = psurf;
 	surface_p->nearzi = r_nearzi;

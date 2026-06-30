@@ -47,7 +47,6 @@ cplane_t	frustum[4];
 int			r_refgl_visframecount;	/* bumped when going to a new PVS */
 int			r_refgl_framecount;		/* used for dlight push checking */
 
-int			c_brush_polys, c_alias_polys;
 
 float		v_blend[4];			/* final blending color */
 
@@ -623,8 +622,6 @@ void R_SetupFrame (void)
 	for (i=0 ; i<4 ; i++)
 		v_blend[i] = r_newrefdef.blend[i];
 
-	c_brush_polys = 0;
-	c_alias_polys = 0;
 
 	/* clear out the portion of the screen that the NOWORLDMODEL defines */
 	if ( r_newrefdef.rdflags & RDF_NOWORLDMODEL )

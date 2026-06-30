@@ -42,8 +42,6 @@ static msurface_t	*r_alpha_surfaces;
 
 #define	MAX_LIGHTMAPS	128
 
-int		c_visible_lightmaps;
-int		c_visible_textures;
 
 #define GL_LIGHTMAP_FORMAT GL_RGBA
 
@@ -312,7 +310,6 @@ static void R_BlendLightmaps (void)
    }
 
    if ( currentmodel == r_worldmodel )
-      c_visible_lightmaps = 0;
 
    /*
     ** render static lightmaps first
@@ -321,8 +318,6 @@ static void R_BlendLightmaps (void)
    {
       if ( gl_lms.lightmap_surfaces[i] )
       {
-         if (currentmodel == r_worldmodel)
-            c_visible_lightmaps++;
          GL_Bind( gl_state.lightmap_textures + i);
 
          for ( surf = gl_lms.lightmap_surfaces[i]; surf != 0; surf = surf->lightmapchain )
@@ -341,9 +336,6 @@ static void R_BlendLightmaps (void)
       LM_InitBlock();
 
       GL_Bind( gl_state.lightmap_textures+0 );
-
-      if (currentmodel == r_worldmodel)
-         c_visible_lightmaps++;
 
       newdrawsurf = gl_lms.lightmap_surfaces[0];
 
@@ -428,7 +420,6 @@ static void R_RenderBrushPoly (msurface_t *fa)
 	image_t		*image;
 	qboolean is_dynamic = false;
 
-	c_brush_polys++;
 
 	image = R_TextureAnimation (fa->texinfo);
 
@@ -555,7 +546,6 @@ void R_DrawAlphaSurfaces (void)
 	for (s=r_alpha_surfaces ; s ; s=s->texturechain)
 	{
 		GL_Bind(s->texinfo->image->texnum);
-		c_brush_polys++;
 		if (s->texinfo->flags & SURF_TRANS33)
 			qglColor4f (intens,intens,intens,0.33);
 		else if (s->texinfo->flags & SURF_TRANS66)
@@ -586,7 +576,6 @@ static void DrawTextureChains (void)
    msurface_t	*s;
    image_t		*image;
 
-   c_visible_textures = 0;
 
 #if 0
    GL_TexEnv( GL_REPLACE );
@@ -598,7 +587,6 @@ static void DrawTextureChains (void)
          continue;
       if (!image->texturechain)
          continue;
-      c_visible_textures++;
 
       for ( s = image->texturechain; s ; s=s->texturechain)
       {

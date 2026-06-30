@@ -52,7 +52,6 @@ qboolean	r_dowarp;
 
 mvertex_t	*r_pcurrentvertbase;
 
-int			c_surf;
 int			r_maxsurfsseen, r_maxedgesseen, r_cnumsurfs;
 qboolean	r_surfsonstack;
 int			r_clipflags;
@@ -93,8 +92,6 @@ mplane_t	screenedge[4];
 int		r_framecount = 1;	// so frame counts initialized to 0 don't match
 int		r_visframecount;
 int		d_spanpixcount;
-int		r_polycount;
-int		r_drawnpolycount;
 int		r_wholepolycount;
 
 int			*pfrustum_indexes[4];

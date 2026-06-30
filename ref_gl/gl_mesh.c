@@ -656,7 +656,6 @@ void R_DrawAliasModel (entity_t *e)
 	 * locate the proper data
 	 */
 
-	c_alias_polys += paliashdr->num_tris;
 
 	/*
 	 * draw all the triangles

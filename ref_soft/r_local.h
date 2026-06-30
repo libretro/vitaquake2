@@ -462,7 +462,6 @@ extern drawsurf_t       r_drawsurf;
 
 void R_DrawSurface (void);
 
-extern int              c_surf;
 
 extern byte             r_warpbuffer[WARP_WIDTH * WARP_HEIGHT];
 
@@ -509,7 +508,6 @@ extern int              cachewidth;
 extern pixel_t  *cacheblock;
 extern int              r_screenwidth;
 
-extern int              r_drawnpolycount;
 
 extern int      *sintable;
 extern int      *intsintable;
@@ -649,8 +647,6 @@ extern void R_EdgeCodeEnd (void);
 
 extern void R_RotateBmodel (void);
 
-extern int      c_faceclip;
-extern int      r_polycount;
 extern int      r_wholepolycount;
 
 extern int                      ubasestep, errorterm, erroradjustup, erroradjustdown;

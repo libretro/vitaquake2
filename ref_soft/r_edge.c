@@ -1069,7 +1069,6 @@ void D_DrawSurfaces (void)
 			if (!s->spans)
 				continue;
 
-			r_drawnpolycount++;
 
 			if (! (s->flags & (SURF_DRAWSKYBOX|SURF_DRAWBACKGROUND|SURF_DRAWTURB) ) )
 				D_SolidSurf (s);
