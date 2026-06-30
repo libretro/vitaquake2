@@ -770,6 +770,10 @@ void destroy_opengl(void)
 
 #include "errno.h"
 
+/* Deterministic, frame-driven millisecond clock: advanced by framerate_ms once
+   per retro_run frame (no wall-clock dependency), which keeps the core
+   reproducible for run-ahead, netplay and demo playback. Read directly across
+   the engine wherever a millisecond timestamp is needed. */
 int	curtime;
 char cmd_line[256];
 
@@ -1029,7 +1033,7 @@ void Sys_DefaultConfig(void)
 extern menufield_s s_maxclients_field;
 char *targetKeyboard;
 void Sys_SetKeys(uint32_t keys, uint32_t state){
-   Key_Event(keys, state, Sys_Milliseconds());
+   Key_Event(keys, state, curtime);
 }
 
 void retro_set_controller_port_device(unsigned port, unsigned device)
@@ -1187,7 +1191,7 @@ void Sys_SendKeyEvents (void)
       SET_BOUND_KEY_PAD(ret, RETRO_DEVICE_ID_JOYPAD_A);
    }
 
-   sys_frame_time = Sys_Milliseconds();
+   sys_frame_time = curtime;
 }
 
 
@@ -1260,15 +1264,6 @@ void Hunk_Free (void *base)
 
    if (base)
       free(base);
-}
-
-int Sys_Milliseconds (void)
-{
-   /* curtime is advanced by framerate_ms once per retro_run frame (see
-      retro_run), giving a deterministic, frame-driven millisecond clock with
-      no wall-clock dependency. This keeps the whole core reproducible for
-      run-ahead, netplay and demo playback regardless of host speed. */
-   return curtime;
 }
 
 void Sys_Mkdir (char *path)
@@ -2468,7 +2463,7 @@ void retro_run(void)
     * supports both software framebuffers and frame duplication. */
    sw_acquire_framebuffer();
 
-   /* advance the deterministic frame clock (see Sys_Milliseconds) by one
+   /* advance the deterministic frame clock (see its definition) by one
     * fixed timestep before simulating the frame */
    curtime += (int)framerate_ms;
 

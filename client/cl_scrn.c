@@ -579,7 +579,7 @@ void SCR_BeginLoadingPlaque (void)
 		scr_draw_loading = 1;
 	SCR_UpdateScreen ();
 
-	cls.disable_screen = Sys_Milliseconds ();
+	cls.disable_screen = curtime;
 	cls.disable_servercount = cl.servercount;
 }
 
@@ -1242,7 +1242,7 @@ void SCR_UpdateScreen (void)
 	// do nothing at all
 	if (cls.disable_screen)
 	{
-		if (Sys_Milliseconds() - cls.disable_screen > 120000)
+		if (curtime - cls.disable_screen > 120000)
 		{
 			cls.disable_screen = 0;
 			Com_Printf ("Loading plaque timed out.\n");

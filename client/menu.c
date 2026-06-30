@@ -698,7 +698,7 @@ static void KeyCursorDrawFunc( menuframework_s *menu )
 	if ( bind_grab )
 		re.DrawChar( menu->x, (menu->y + menu->cursor * 9) * scale, '=' , scale);
 	else
-		re.DrawChar( menu->x, (menu->y + menu->cursor * 9) * scale, 12 + ( ( int ) ( Sys_Milliseconds() / 250 ) & 1 ), scale );
+		re.DrawChar( menu->x, (menu->y + menu->cursor * 9) * scale, 12 + ( ( int ) ( curtime / 250 ) & 1 ), scale );
 }
 
 static void DrawKeyBindingFunc( void *self )

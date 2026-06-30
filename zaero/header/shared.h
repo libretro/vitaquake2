@@ -226,9 +226,8 @@ qboolean Info_Validate(char *s);
  * ==============================================================
  */
 
-extern int curtime; /* time returned by last Sys_Milliseconds */
+extern int curtime; /* deterministic frame-driven millisecond clock */
 
-int Sys_Milliseconds(void);
 void Sys_Mkdir(char *path);
 void Sys_Rmdir(char *path);
 char *strlwr(char *s);

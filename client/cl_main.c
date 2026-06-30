@@ -1405,7 +1405,7 @@ CL_InitLocal
 void CL_InitLocal (void)
 {
 	cls.state = ca_disconnected;
-	cls.realtime = Sys_Milliseconds ();
+	cls.realtime = curtime;
 
 	CL_InitInput ();
 

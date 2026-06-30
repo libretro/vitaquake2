@@ -172,7 +172,7 @@ void Field_Draw( menufield_s *f )
 			offset = f->cursor;
 		}
 
-		if (((int)(Sys_Milliseconds() / 250)) & 1)
+		if (((int)(curtime / 250)) & 1)
 		{
 			Draw_Char(
 				f->generic.x + f->generic.parent->x + 24 * scale + (offset * 8 * scale),
@@ -451,7 +451,7 @@ void Menu_Draw( menuframework_s *menu )
 			Draw_Char(
 					menu->x + (item->x / scale - 24 + item->cursor_offset) * scale,
 					(menu->y + item->y) * scale,
-					12 + ( ( int ) ( Sys_Milliseconds()/250 ) & 1 ),
+					12 + ( ( int ) ( curtime/250 ) & 1 ),
 					scale);
 		}
 		else
@@ -459,7 +459,7 @@ void Menu_Draw( menuframework_s *menu )
 			Draw_Char(
 					menu->x + item->cursor_offset  * scale,
 					(menu->y + item->y) * scale,
-					12 + ( ( int ) ( Sys_Milliseconds()/250 ) & 1 ),
+					12 + ( ( int ) ( curtime/250 ) & 1 ),
 					scale);
 		}
 	}
