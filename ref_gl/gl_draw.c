@@ -163,14 +163,8 @@ void Draw_StretchPic (int x, int y, int w, int h, char *pic)
 		return;
 	}
 
-	if ( ( ( gl_config.renderer == GL_RENDERER_MCD ) || ( gl_config.renderer & GL_RENDERER_RENDITION ) ) && !gl->has_alpha)
-		qglDisable(GL_ALPHA_TEST);
-
 	GL_Bind (gl->texnum);
 	DrawPic(x, y, w, h, gl->sl, gl->tl, gl->sh, gl->th);
-
-	if ( ( ( gl_config.renderer == GL_RENDERER_MCD ) || ( gl_config.renderer & GL_RENDERER_RENDITION ) ) && !gl->has_alpha)
-		qglEnable(GL_ALPHA_TEST);
 }
 
 
@@ -190,14 +184,8 @@ void Draw_Pic (int x, int y, char *pic, float factor)
 		return;
 	}
 
-	if ( ( ( gl_config.renderer == GL_RENDERER_MCD ) || ( gl_config.renderer & GL_RENDERER_RENDITION ) ) && !gl->has_alpha)
-		qglDisable(GL_ALPHA_TEST);
-
 	GL_Bind (gl->texnum);
 	DrawPic(x, y, gl->width * factor, gl->height * factor, gl->sl, gl->tl, gl->sh, gl->th);
-
-	if ( ( ( gl_config.renderer == GL_RENDERER_MCD ) || ( gl_config.renderer & GL_RENDERER_RENDITION ) )  && !gl->has_alpha)
-		qglEnable(GL_ALPHA_TEST);
 }
 
 /*
@@ -219,15 +207,8 @@ void Draw_TileClear (int x, int y, int w, int h, char *pic)
 		return;
 	}
 
-	if ( ( ( gl_config.renderer == GL_RENDERER_MCD ) || ( gl_config.renderer & GL_RENDERER_RENDITION ) )  && !image->has_alpha)
-		qglDisable(GL_ALPHA_TEST);
-
-	
 	GL_Bind (image->texnum);
 	DrawQuad(x, y, w, h, x/64.0, y/64.0, w/64.0, h/64.0);
-
-	if ( ( ( gl_config.renderer == GL_RENDERER_MCD ) || ( gl_config.renderer & GL_RENDERER_RENDITION ) )  && !image->has_alpha)
-		qglEnable(GL_ALPHA_TEST);
 }
 
 
@@ -337,16 +318,10 @@ void Draw_StretchRaw (int x, int y, int w, int h, int cols, int rows, byte *data
 	qglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	qglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-#if 0
-   if ( ( gl_config.renderer == GL_RENDERER_MCD ) || ( gl_config.renderer & GL_RENDERER_RENDITION ) ) 
-#endif
-		qglDisable(GL_ALPHA_TEST);
+	qglDisable(GL_ALPHA_TEST);
 
 	DrawPic(x, y, w, h, 0, 0, 1, t);
 
-#if 0
-	if ( ( gl_config.renderer == GL_RENDERER_MCD ) || ( gl_config.renderer & GL_RENDERER_RENDITION ) ) 
-#endif
-		qglEnable(GL_ALPHA_TEST);
+	qglEnable(GL_ALPHA_TEST);
 }
 

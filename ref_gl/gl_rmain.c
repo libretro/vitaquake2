@@ -132,8 +132,6 @@ cvar_t	*gl_texturealphamode;
 cvar_t	*gl_texturesolidmode;
 cvar_t	*gl_lockpvs;
 
-cvar_t	*gl_3dlabs_broken;
-
 extern cvar_t	*vid_fullscreen;
 cvar_t	*vid_refgl_gamma;
 cvar_t	*vid_refgl_brightness;
@@ -1004,8 +1002,6 @@ void R_Register( void )
 
 	gl_saturatelighting = ri.Cvar_Get( "gl_saturatelighting", "0", 0 );
 
-	gl_3dlabs_broken = ri.Cvar_Get( "gl_3dlabs_broken", "1", CVAR_ARCHIVE );
-
 	vid_fullscreen = ri.Cvar_Get( "vid_fullscreen", "0", CVAR_ARCHIVE );
 
 	vid_refgl_gamma = ri.Cvar_Get( "vid_gamma", "1.0", CVAR_ARCHIVE );
@@ -1192,8 +1188,7 @@ static void R_BeginFrame( float camera_separation )
 	/*
 	** rebuild the gamma table and re-apply it to the loaded textures when
 	** vid_gamma / contrast / brightness change (e.g. from the Video menu),
-	** so the change updates live without a vid_restart. 3Dfx boards still go
-	** through the env-var ramp for gamma.
+	** so the change updates live without a vid_restart.
 	*/
 	if ( vid_refgl_gamma->modified || vid_refgl_brightness->modified || vid_refgl_contrast->modified )
 	{
@@ -1201,21 +1196,7 @@ static void R_BeginFrame( float camera_separation )
 		vid_refgl_brightness->modified = false;
 		vid_refgl_contrast->modified = false;
 
-#if !defined(__SWITCH__)
-		if ( gl_config.renderer & ( GL_RENDERER_VOODOO ) )
-		{
-			char envbuffer[1024];
-			float g;
-
-			g = 2.00 * ( 0.8 - ( vid_refgl_gamma->value - 0.5 ) ) + 1.0F;
-			Com_sprintf( envbuffer, sizeof(envbuffer), "SSTV2_GAMMA=%f", g );
-			putenv( envbuffer );
-			Com_sprintf( envbuffer, sizeof(envbuffer), "SST_GAMMA=%f", g );
-			putenv( envbuffer );
-		}
-		else
-#endif
-			GL_UpdateGamma();
+		GL_UpdateGamma();
 	}
 
 	GLimp_BeginFrame( camera_separation );

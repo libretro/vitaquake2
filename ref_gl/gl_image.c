@@ -953,8 +953,7 @@ GL_BuildGammaTable
 
 Build the 256-entry gamma table from vid_gamma / contrast / brightness.
 Brightness is an additive offset and contrast scales about mid-gray, both
-applied before the gamma curve (matching tyrquake's BuildGammaTable). 3Dfx
-boards force gamma 1 as before.
+applied before the gamma curve (matching tyrquake's BuildGammaTable).
 ===============
 */
 static void GL_BuildGammaTable (void)
@@ -963,9 +962,6 @@ static void GL_BuildGammaTable (void)
 	float g = vid_refgl_gamma->value;
 	float c = vid_refgl_contrast->value;
 	float b = vid_refgl_brightness->value;
-
-	if ( gl_config.renderer & ( GL_RENDERER_VOODOO | GL_RENDERER_VOODOO2 ) )
-		g = 1.0F;
 
 	if ( g == 1.0F && c == 1.0F && b == 0.0F )
 	{
