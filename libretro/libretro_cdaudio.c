@@ -77,7 +77,7 @@ static long ogg_mem_tell(void *ds)
 }
 
 /* ------------------------------------------------------------------ */
-/* Streaming decode + 16.16 fixed-point linear resample state         */
+/* Streaming decode + 16.16 fixed-point cubic resample state          */
 /* ------------------------------------------------------------------ */
 #define CD_DEC_FRAMES 2048
 
@@ -95,8 +95,10 @@ static int            cd_dec_i   = 0;
 
 static uint32_t       cd_step    = 0x10000;      /* src_rate / out_rate, 16.16 */
 static uint32_t       cd_frac    = 0;
-static int16_t        cd_cur[2]  = {0, 0};
-static int16_t        cd_nxt[2]  = {0, 0};
+static int16_t        cd_s0[2]   = {0, 0};        /* 4-tap window for cubic resample; */
+static int16_t        cd_s1[2]   = {0, 0};        /* the active segment is cd_s1 -> cd_s2, */
+static int16_t        cd_s2[2]   = {0, 0};        /* with cd_s0 / cd_s3 as the outer taps. */
+static int16_t        cd_s3[2]   = {0, 0};
 static bool           cd_primed  = false;
 
 static void cd_close(void)
@@ -158,6 +160,67 @@ static int cd_pull(int16_t out[2])
    out[0] = cd_dec[cd_dec_i * 2];
    out[1] = cd_dec[cd_dec_i * 2 + 1];
    cd_dec_i++;
+   return 1;
+}
+
+/* Catmull-Rom cubic across the 4-tap window (cd_s0..cd_s3) at the current
+ * 16.16 fractional position; the active segment is cd_s1 -> cd_s2. This is a
+ * higher-order reconstruction than linear interpolation, so upsampling this
+ * (full-bandwidth) music source keeps the low/mid band - where the musical
+ * energy sits - far more accurate. Integer throughout; result is clamped to
+ * int16 since a cubic can overshoot the sample range on sharp transitions. */
+static void cd_interp(int res[2])
+{
+   int     ch;
+   int64_t f = cd_frac;
+
+   for (ch = 0; ch < 2; ch++)
+   {
+      int64_t im1 = cd_s0[ch];
+      int64_t i0  = cd_s1[ch];
+      int64_t i1  = cd_s2[ch];
+      int64_t i2  = cd_s3[ch];
+      int64_t a   = i1 - im1;
+      int64_t b   = 2*im1 - 5*i0 + 4*i1 - i2;
+      int64_t c   = 3*(i0 - i1) + i2 - im1;
+      int64_t inner = b + ((c * f) >> 16);
+      int64_t mid   = a + ((inner * f) >> 16);
+      int64_t outer = (mid * f) >> 16;
+      int     v     = (int)(i0 + (outer >> 1));   /* i0 + 0.5*f*(a+f*(b+f*c)) */
+
+      if (v >  32767) v =  32767;
+      else if (v < -32768) v = -32768;
+      res[ch] = v;
+   }
+}
+
+/* Slide the window forward one source frame, pulling a fresh sample into
+ * cd_s3. Returns 0 at end of stream. */
+static int cd_advance(void)
+{
+   cd_s0[0] = cd_s1[0]; cd_s0[1] = cd_s1[1];
+   cd_s1[0] = cd_s2[0]; cd_s1[1] = cd_s2[1];
+   cd_s2[0] = cd_s3[0]; cd_s2[1] = cd_s3[1];
+   return cd_pull(cd_s3);
+}
+
+/* Fill the window to start playback. cd_s0 holds the first sample (nothing
+ * precedes the stream start); a stream shorter than the window duplicates the
+ * last sample into the trailing tap. Returns 0 if there is nothing to play. */
+static int cd_prime(void)
+{
+   if (!cd_pull(cd_s1))
+      return 0;
+   cd_s0[0] = cd_s1[0]; cd_s0[1] = cd_s1[1];
+   if (!cd_pull(cd_s2))
+      return 0;
+   if (!cd_pull(cd_s3))
+   {
+      cd_s3[0] = cd_s2[0];
+      cd_s3[1] = cd_s2[1];
+   }
+   cd_frac   = 0;
+   cd_primed = true;
    return 1;
 }
 #endif
@@ -276,26 +339,26 @@ void CDAudio_Mix(int16_t *buffer, size_t num_frames, float volume)
 
    if (!cd_primed)
    {
-      if (!cd_pull(cd_cur) || !cd_pull(cd_nxt))
+      if (!cd_prime())
       {
          cd_close();
          return;
       }
-      cd_frac   = 0;
-      cd_primed = true;
    }
 
    for (n = 0; n < num_frames; n++)
    {
-      int l = cd_cur[0] + (int)(((int64_t)(cd_nxt[0] - cd_cur[0]) * cd_frac) >> 16);
-      int r = cd_cur[1] + (int)(((int64_t)(cd_nxt[1] - cd_cur[1]) * cd_frac) >> 16);
+      int s[2];
+      int l, r;
+
+      cd_interp(s);
+      l = s[0];
+      r = s[1];
 
       cd_frac += cd_step;
       while (cd_frac >= 0x10000)
       {
-         cd_cur[0] = cd_nxt[0];
-         cd_cur[1] = cd_nxt[1];
-         if (!cd_pull(cd_nxt))
+         if (!cd_advance())
          {
             l = (l * vol) >> 8;
             r = (r * vol) >> 8;
@@ -316,9 +379,10 @@ void CDAudio_Mix(int16_t *buffer, size_t num_frames, float volume)
 }
 
 /* Float counterpart of CDAudio_Mix, used when float audio output has been
- * negotiated. Identical interpolation; only the accumulate/clip differs --
- * the int16 CD samples are normalized to [-1,1] and summed into the float
- * output buffer, then soft-clipped with the same curve. */
+ * negotiated. Same cubic interpolation via the shared helpers; only the
+ * accumulate/clip differs -- the int16 CD samples are normalized to [-1,1]
+ * and summed into the float output buffer, then soft-clipped with the same
+ * curve. */
 void CDAudio_MixF(float *buffer, size_t num_frames, float volume)
 {
 #if defined(HAVE_CDAUDIO)
@@ -334,26 +398,26 @@ void CDAudio_MixF(float *buffer, size_t num_frames, float volume)
 
    if (!cd_primed)
    {
-      if (!cd_pull(cd_cur) || !cd_pull(cd_nxt))
+      if (!cd_prime())
       {
          cd_close();
          return;
       }
-      cd_frac   = 0;
-      cd_primed = true;
    }
 
    for (n = 0; n < num_frames; n++)
    {
-      int l = cd_cur[0] + (int)(((int64_t)(cd_nxt[0] - cd_cur[0]) * cd_frac) >> 16);
-      int r = cd_cur[1] + (int)(((int64_t)(cd_nxt[1] - cd_cur[1]) * cd_frac) >> 16);
+      int s[2];
+      int l, r;
+
+      cd_interp(s);
+      l = s[0];
+      r = s[1];
 
       cd_frac += cd_step;
       while (cd_frac >= 0x10000)
       {
-         cd_cur[0] = cd_nxt[0];
-         cd_cur[1] = cd_nxt[1];
-         if (!cd_pull(cd_nxt))
+         if (!cd_advance())
          {
             l = (l * vol) >> 8;
             r = (r * vol) >> 8;
