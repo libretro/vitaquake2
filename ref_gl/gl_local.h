@@ -222,6 +222,8 @@ extern  cvar_t  *gl_xflip;
 
 extern	cvar_t	*vid_fullscreen;
 extern	cvar_t	*vid_refgl_gamma;
+extern	cvar_t	*vid_refgl_brightness;
+extern	cvar_t	*vid_refgl_contrast;
 
 extern	cvar_t		*intensity;
 

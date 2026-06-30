@@ -136,6 +136,8 @@ cvar_t	*gl_3dlabs_broken;
 
 extern cvar_t	*vid_fullscreen;
 cvar_t	*vid_refgl_gamma;
+cvar_t	*vid_refgl_brightness;
+cvar_t	*vid_refgl_contrast;
 extern cvar_t	*vid_ref;
 
 cvar_t  *gl_xflip;
@@ -1007,6 +1009,8 @@ void R_Register( void )
 	vid_fullscreen = ri.Cvar_Get( "vid_fullscreen", "0", CVAR_ARCHIVE );
 
 	vid_refgl_gamma = ri.Cvar_Get( "vid_gamma", "1.0", CVAR_ARCHIVE );
+	vid_refgl_brightness = ri.Cvar_Get( "brightness", "0.0", CVAR_ARCHIVE );
+	vid_refgl_contrast = ri.Cvar_Get( "contrast", "1.0", CVAR_ARCHIVE );
 
 	vid_ref = ri.Cvar_Get( "vid_ref", "soft", CVAR_ARCHIVE );
 	
@@ -1187,12 +1191,15 @@ static void R_BeginFrame( float camera_separation )
 
 	/*
 	** rebuild the gamma table and re-apply it to the loaded textures when
-	** vid_gamma changes (e.g. from the Video menu), so gamma updates live
-	** without a vid_restart. 3Dfx boards still go through the env-var ramp.
+	** vid_gamma / contrast / brightness change (e.g. from the Video menu),
+	** so the change updates live without a vid_restart. 3Dfx boards still go
+	** through the env-var ramp for gamma.
 	*/
-	if ( vid_refgl_gamma->modified )
+	if ( vid_refgl_gamma->modified || vid_refgl_brightness->modified || vid_refgl_contrast->modified )
 	{
 		vid_refgl_gamma->modified = false;
+		vid_refgl_brightness->modified = false;
+		vid_refgl_contrast->modified = false;
 
 #if !defined(__SWITCH__)
 		if ( gl_config.renderer & ( GL_RENDERER_VOODOO ) )

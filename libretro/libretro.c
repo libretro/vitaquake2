@@ -2747,7 +2747,9 @@ static menuframework_s *s_current_menu;
 static menulist_s       s_mode_list;
 static menulist_s       s_ref_list;
 static menuslider_s     s_screensize_slider;
+static menuslider_s     s_gamma_slider;
 static menuslider_s     s_brightness_slider;
+static menuslider_s     s_contrast_slider;
 static menuaction_s     s_cancel_action;
 
 viddef_t    viddef;             /* global video state */
@@ -2888,17 +2890,31 @@ static void DriverCallback( void *unused )
 #endif
 }
 
-/* Adjust gamma live from the Video menu. vid_gamma is CVAR_ARCHIVE (so the
- * setting persists), and Cvar_SetValue marks it modified, which makes the
- * active renderer rebuild its gamma table on the next frame - the software
- * renderer rebuilds its palette and the GL renderer re-applies the gamma to
- * its textures - so the change takes effect without a restart. */
-static void BrightnessCallback( void *s )
+/* Gamma, brightness and contrast are all CVAR_ARCHIVE (so they persist), and
+ * Cvar_SetValue marks them modified, which makes the active renderer rebuild
+ * its gamma table on the next frame - the software renderer rebuilds its
+ * palette and the GL renderer re-applies the table to its textures - so the
+ * change takes effect without a restart. */
+static void GammaCallback( void *s )
 {
    menuslider_s *slider = ( menuslider_s * ) s;
    float gamma = ( 0.8f - ( slider->curvalue / 10.0f - 0.5f ) ) + 0.5f;
 
    Cvar_SetValue( "vid_gamma", gamma );
+}
+
+static void BrightnessCallback( void *s )
+{
+   menuslider_s *slider = ( menuslider_s * ) s;
+
+   Cvar_SetValue( "brightness", slider->curvalue * 0.05f - 0.5f );
+}
+
+static void ContrastCallback( void *s )
+{
+   menuslider_s *slider = ( menuslider_s * ) s;
+
+   Cvar_SetValue( "contrast", 0.5f + slider->curvalue * 0.05f );
 }
 
 static void ApplyChanges( void *unused )
@@ -3023,19 +3039,45 @@ void    VID_MenuInit (void)
    s_ref_list.generic.callback = DriverCallback;
    s_ref_list.itemnames = refs;
 
-   /* gamma / brightness, applied live (see BrightnessCallback). The slider
-    * runs 5..13 mapping to vid_gamma 1.3 (darkest) .. 0.5 (brightest), the
-    * same sense as stock Quake II's brightness control. */
+   /* gamma, applied live (see GammaCallback). 5..13 maps to vid_gamma
+    * 1.3 (darkest) .. 0.5 (brightest), the same sense as stock Quake II. */
+   s_gamma_slider.generic.type     = MTYPE_SLIDER;
+   s_gamma_slider.generic.name     = "gamma";
+   s_gamma_slider.generic.x        = 0;
+   s_gamma_slider.generic.y        = 10;
+   s_gamma_slider.generic.callback = GammaCallback;
+   s_gamma_slider.minvalue         = 5;
+   s_gamma_slider.maxvalue         = 13;
+   {
+      cvar_t *g = Cvar_Get( "vid_gamma", "1.0", CVAR_ARCHIVE );
+      s_gamma_slider.curvalue = ( 1.3f - ( g ? g->value : 1.0f ) + 0.5f ) * 10.0f;
+   }
+
+   /* brightness (additive) and contrast (scaled about mid-gray), backported
+    * from tyrquake and folded into the same gamma table. Both run 0..20 in
+    * 0.05 steps: brightness -0.5..0.5 (default 0), contrast 0.5..1.5 (def 1). */
    s_brightness_slider.generic.type     = MTYPE_SLIDER;
    s_brightness_slider.generic.name     = "brightness";
    s_brightness_slider.generic.x        = 0;
-   s_brightness_slider.generic.y        = 10;
+   s_brightness_slider.generic.y        = 20;
    s_brightness_slider.generic.callback = BrightnessCallback;
-   s_brightness_slider.minvalue         = 5;
-   s_brightness_slider.maxvalue         = 13;
+   s_brightness_slider.minvalue         = 0;
+   s_brightness_slider.maxvalue         = 20;
    {
-      cvar_t *g = Cvar_Get( "vid_gamma", "1.0", CVAR_ARCHIVE );
-      s_brightness_slider.curvalue = ( 1.3f - ( g ? g->value : 1.0f ) + 0.5f ) * 10.0f;
+      cvar_t *b = Cvar_Get( "brightness", "0.0", CVAR_ARCHIVE );
+      s_brightness_slider.curvalue = ( ( b ? b->value : 0.0f ) + 0.5f ) * 20.0f;
+   }
+
+   s_contrast_slider.generic.type     = MTYPE_SLIDER;
+   s_contrast_slider.generic.name     = "contrast";
+   s_contrast_slider.generic.x        = 0;
+   s_contrast_slider.generic.y        = 30;
+   s_contrast_slider.generic.callback = ContrastCallback;
+   s_contrast_slider.minvalue         = 0;
+   s_contrast_slider.maxvalue         = 20;
+   {
+      cvar_t *c = Cvar_Get( "contrast", "1.0", CVAR_ARCHIVE );
+      s_contrast_slider.curvalue = ( ( c ? c->value : 1.0f ) - 0.5f ) * 20.0f;
    }
 
    s_cancel_action.generic.type = MTYPE_ACTION;
@@ -3045,7 +3087,9 @@ void    VID_MenuInit (void)
    s_cancel_action.generic.callback = CancelChanges;
 
    Menu_AddItem( &s_opengl_menu, ( void * ) &s_ref_list );
+   Menu_AddItem( &s_opengl_menu, ( void * ) &s_gamma_slider );
    Menu_AddItem( &s_opengl_menu, ( void * ) &s_brightness_slider );
+   Menu_AddItem( &s_opengl_menu, ( void * ) &s_contrast_slider );
    Menu_AddItem( &s_opengl_menu, ( void * ) &s_cancel_action );
    Menu_Center( &s_opengl_menu );
 

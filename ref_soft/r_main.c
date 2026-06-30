@@ -138,6 +138,8 @@ cvar_t	*r_refsoft_lightlevel;	//FIXME HACK
 
 extern cvar_t	*vid_fullscreen;
 cvar_t	*vid_gamma;
+cvar_t	*vid_brightness;
+cvar_t	*vid_contrast;
 
 //PGM
 cvar_t	*sw_lockpvs;
@@ -309,6 +311,8 @@ void SWR_Register (void)
 	vid_fullscreen = ri.Cvar_Get( "vid_fullscreen", "0", CVAR_ARCHIVE );
 
 	vid_gamma = ri.Cvar_Get( "vid_gamma", "1.0", CVAR_ARCHIVE );
+	vid_brightness = ri.Cvar_Get( "brightness", "0.0", CVAR_ARCHIVE );
+	vid_contrast = ri.Cvar_Get( "contrast", "1.0", CVAR_ARCHIVE );
 
 	ri.Cmd_AddCommand ("modellist", SWR_Mod_Modellist_f);
 	ri.Cmd_AddCommand( "screenshot", R_ScreenShot_f );
@@ -1138,12 +1142,14 @@ static void SWR_BeginFrame( float camera_separation )
 	/*
 	** rebuild the gamma correction palette if necessary
 	*/
-	if ( vid_gamma->modified )
+	if ( vid_gamma->modified || vid_brightness->modified || vid_contrast->modified )
 	{
 		Draw_BuildGammaTable();
 		R_GammaCorrectAndSetPalette( ( const unsigned char * ) d_refsoft_8to24table );
 
 		vid_gamma->modified = false;
+		vid_brightness->modified = false;
+		vid_contrast->modified = false;
 	}
 
 	while ( sw_mode->modified || vid_fullscreen->modified )
@@ -1245,20 +1251,30 @@ Draw_BuildGammaTable
 void Draw_BuildGammaTable (void)
 {
 	int		i, inf;
-	float	g;
+	float	g = vid_gamma->value;
+	float	c = vid_contrast->value;
+	float	b = vid_brightness->value;
 
-	g = vid_gamma->value;
-
-	if (g == 1.0)
+	if (g == 1.0 && c == 1.0 && b == 0.0)
 	{
 		for (i=0 ; i<256 ; i++)
 			sw_state.gammatable[i] = i;
 		return;
 	}
-	
+
 	for (i=0 ; i<256 ; i++)
 	{
-		inf = 255 * pow ( (i+0.5)/255.5 , g ) + 0.5;
+		/* brightness (additive) and contrast (scale about mid-gray)
+		   before the gamma curve, matching tyrquake's BuildGammaTable */
+		float x = (float)i + b * 255.0f;
+
+		x = (x - 128.0f) * c + 128.0f;
+		if (x < 0.0f)
+			x = 0.0f;
+		if (x > 255.0f)
+			x = 255.0f;
+
+		inf = 255 * pow ( (x+0.5)/255.5 , g ) + 0.5;
 		if (inf < 0)
 			inf = 0;
 		if (inf > 255)

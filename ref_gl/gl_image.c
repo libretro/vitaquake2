@@ -949,13 +949,59 @@ int Draw_GetPalette (void)
 
 /*
 ===============
+GL_BuildGammaTable
+
+Build the 256-entry gamma table from vid_gamma / contrast / brightness.
+Brightness is an additive offset and contrast scales about mid-gray, both
+applied before the gamma curve (matching tyrquake's BuildGammaTable). 3Dfx
+boards force gamma 1 as before.
+===============
+*/
+static void GL_BuildGammaTable (void)
+{
+	int   i;
+	float g = vid_refgl_gamma->value;
+	float c = vid_refgl_contrast->value;
+	float b = vid_refgl_brightness->value;
+
+	if ( gl_config.renderer & ( GL_RENDERER_VOODOO | GL_RENDERER_VOODOO2 ) )
+		g = 1.0F;
+
+	if ( g == 1.0F && c == 1.0F && b == 0.0F )
+	{
+		for ( i = 0; i < 256; i++ )
+			gammatable[i] = i;
+		return;
+	}
+
+	for ( i = 0; i < 256; i++ )
+	{
+		float x = (float)i + b * 255.0f;
+		int   inf;
+
+		x = (x - 128.0f) * c + 128.0f;
+		if (x < 0.0f)
+			x = 0.0f;
+		if (x > 255.0f)
+			x = 255.0f;
+
+		inf = (int)( 255.0f * pow ( (x+0.5f)/255.5f, g ) + 0.5f );
+		if (inf < 0)
+			inf = 0;
+		if (inf > 255)
+			inf = 255;
+		gammatable[i] = (unsigned char)inf;
+	}
+}
+
+/*
+===============
 GL_InitImages
 ===============
 */
 void	GL_InitImages (void)
 {
 	int		i, j;
-	float	g = vid_refgl_gamma->value;
 
 	refgl_registration_sequence = 1;
 
@@ -969,29 +1015,7 @@ void	GL_InitImages (void)
 
 	Draw_GetPalette ();
 
-	if ( gl_config.renderer & ( GL_RENDERER_VOODOO | GL_RENDERER_VOODOO2 ) )
-	{
-		g = 1.0F;
-	}
-
-	for ( i = 0; i < 256; i++ )
-	{
-		if ( g == 1 )
-		{
-			gammatable[i] = i;
-		}
-		else
-		{
-			float inf;
-
-			inf = 255 * pow ( (i+0.5)/255.5 , g ) + 0.5;
-			if (inf < 0)
-				inf = 0;
-			if (inf > 255)
-				inf = 255;
-			gammatable[i] = inf;
-		}
-	}
+	GL_BuildGammaTable ();
 
 	for (i=0 ; i<256 ; i++)
 	{
@@ -1156,34 +1180,14 @@ void restore_textures()
 ===============
 GL_UpdateGamma
 
-Rebuild the gamma table from the current vid_gamma and re-apply it to the
-textures already resident in GL, so a gamma change made from the Video menu
-takes effect without a vid_restart. The gamma loop mirrors GL_InitImages;
-restore_textures() re-uploads every disk-backed texture through the new table.
+Rebuild the gamma table from the current vid_gamma / contrast / brightness and
+re-apply it to the textures already resident in GL, so a change made from the
+Video menu takes effect without a vid_restart. restore_textures() re-uploads
+every disk-backed texture through the new table.
 ===============
 */
 void GL_UpdateGamma (void)
 {
-	int   i;
-	float g = vid_refgl_gamma->value;
-
-	if ( gl_config.renderer & ( GL_RENDERER_VOODOO | GL_RENDERER_VOODOO2 ) )
-		g = 1.0F;
-
-	for ( i = 0; i < 256; i++ )
-	{
-		if ( g == 1 )
-			gammatable[i] = i;
-		else
-		{
-			float inf = 255 * pow ( (i+0.5)/255.5, g ) + 0.5;
-			if (inf < 0)
-				inf = 0;
-			if (inf > 255)
-				inf = 255;
-			gammatable[i] = (unsigned char)inf;
-		}
-	}
-
-	restore_textures();
+	GL_BuildGammaTable ();
+	restore_textures ();
 }
