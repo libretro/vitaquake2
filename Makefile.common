@@ -16,26 +16,22 @@ INCFLAGS  := \
 
 SYSTEM = \
 	$(LIBRETRO_DIR)/libretro.c \
-	$(LIBRETRO_DIR)/libretro_cdaudio.c
-
-ifeq ($(HAVE_CDAUDIO),1)
-	SYSTEM += \
-		$(LIBRETRO_DIR)/codec/ogg/bitwise.c \
-		$(LIBRETRO_DIR)/codec/ogg/framing.c \
-		$(LIBRETRO_DIR)/codec/tremor/block.c \
-		$(LIBRETRO_DIR)/codec/tremor/codebook.c \
-		$(LIBRETRO_DIR)/codec/tremor/floor0.c \
-		$(LIBRETRO_DIR)/codec/tremor/floor1.c \
-		$(LIBRETRO_DIR)/codec/tremor/info.c \
-		$(LIBRETRO_DIR)/codec/tremor/mapping0.c \
-		$(LIBRETRO_DIR)/codec/tremor/mdct.c \
-		$(LIBRETRO_DIR)/codec/tremor/registry.c \
-		$(LIBRETRO_DIR)/codec/tremor/res012.c \
-		$(LIBRETRO_DIR)/codec/tremor/sharedbook.c \
-		$(LIBRETRO_DIR)/codec/tremor/synthesis.c \
-		$(LIBRETRO_DIR)/codec/tremor/vorbisfile.c \
-		$(LIBRETRO_DIR)/codec/tremor/window.c 
-endif
+	$(LIBRETRO_DIR)/libretro_cdaudio.c \
+	$(LIBRETRO_DIR)/codec/ogg/bitwise.c \
+	$(LIBRETRO_DIR)/codec/ogg/framing.c \
+	$(LIBRETRO_DIR)/codec/tremor/block.c \
+	$(LIBRETRO_DIR)/codec/tremor/codebook.c \
+	$(LIBRETRO_DIR)/codec/tremor/floor0.c \
+	$(LIBRETRO_DIR)/codec/tremor/floor1.c \
+	$(LIBRETRO_DIR)/codec/tremor/info.c \
+	$(LIBRETRO_DIR)/codec/tremor/mapping0.c \
+	$(LIBRETRO_DIR)/codec/tremor/mdct.c \
+	$(LIBRETRO_DIR)/codec/tremor/registry.c \
+	$(LIBRETRO_DIR)/codec/tremor/res012.c \
+	$(LIBRETRO_DIR)/codec/tremor/sharedbook.c \
+	$(LIBRETRO_DIR)/codec/tremor/synthesis.c \
+	$(LIBRETRO_DIR)/codec/tremor/vorbisfile.c \
+	$(LIBRETRO_DIR)/codec/tremor/window.c 
 
 SYSTEM_COMM = \
       $(LIBRETRO_COMM_DIR)/compat/compat_posix_string.c \

@@ -1782,7 +1782,6 @@ static void update_variables(bool startup)
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
       analog_deadzone = (int)(atoi(var.value) * 0.01f * ANALOG_RANGE);
 
-#if defined(HAVE_CDAUDIO)
    var.key = "vitaquakeii_cdaudio_enabled";
    var.value = NULL;
    cdaudio_enabled = true;
@@ -1793,8 +1792,6 @@ static void update_variables(bool startup)
 
    if (!cdaudio_enabled && CDAudio_Playing())
       CDAudio_Stop();
-
-#endif
 
    /* We need Qcommon_Init to be executed to be able to set Cvars */
    if (!startup)

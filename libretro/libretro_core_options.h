@@ -391,7 +391,6 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       },
       "auto"
    },
-#if defined(HAVE_CDAUDIO)
    {
       "vitaquakeii_cdaudio_enabled",
       "Play Music",
@@ -406,7 +405,6 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       },
       "enabled"
    },
-#endif
    {
       "vitaquakeii_cl_run",
       "Auto Run",

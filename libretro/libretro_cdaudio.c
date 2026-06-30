@@ -1,5 +1,4 @@
 
-#if defined(HAVE_CDAUDIO)
 #include <stdlib.h>
 #include <string.h>
 
@@ -11,12 +10,10 @@
  * on every platform -- the CD/music path is now deterministic int16 end to
  * end (decode, resample and mix), matching the SFX mixer. */
 #include <ivorbisfile.h>
-#endif
 
 #include "../game/q_shared.h"
 #include "../client/cdaudio.h"
 
-#if defined(HAVE_CDAUDIO)
 extern char g_music_dir[1024];
 extern bool cdaudio_enabled;
 /* Output sample rate in force this session (resolved in libretro.c from the
@@ -223,28 +220,20 @@ static int cd_prime(void)
    cd_primed = true;
    return 1;
 }
-#endif
 
 int CDAudio_Init(void)
 {
-#if defined(HAVE_CDAUDIO)
    cd_close();
    return 1;
-#else
-   return 0;
-#endif
 }
 
 void CDAudio_Shutdown(void)
 {
-#if defined(HAVE_CDAUDIO)
    cd_close();
-#endif
 }
 
 void CDAudio_Play(int track, qboolean looping)
 {
-#if defined(HAVE_CDAUDIO)
    char         file_name[32];
    char         file_path[1024];
    void        *file_contents = NULL;
@@ -310,14 +299,11 @@ void CDAudio_Play(int track, qboolean looping)
    cd_primed  = false;
    cd_dec_n   = cd_dec_i = 0;
    cd_playing = true;
-#endif
 }
 
 void CDAudio_Stop(void)
 {
-#if defined(HAVE_CDAUDIO)
    cd_close();
-#endif
 }
 
 void CDAudio_Update(void)
@@ -326,7 +312,6 @@ void CDAudio_Update(void)
 
 void CDAudio_Mix(int16_t *buffer, size_t num_frames, float volume)
 {
-#if defined(HAVE_CDAUDIO)
    size_t n;
    int    vol;
 
@@ -375,7 +360,6 @@ void CDAudio_Mix(int16_t *buffer, size_t num_frames, float volume)
       buffer[n * 2]     = (int16_t)S_SoftClip((int)buffer[n * 2]     + l);
       buffer[n * 2 + 1] = (int16_t)S_SoftClip((int)buffer[n * 2 + 1] + r);
    }
-#endif
 }
 
 /* Float counterpart of CDAudio_Mix, used when float audio output has been
@@ -385,7 +369,6 @@ void CDAudio_Mix(int16_t *buffer, size_t num_frames, float volume)
  * curve. */
 void CDAudio_MixF(float *buffer, size_t num_frames, float volume)
 {
-#if defined(HAVE_CDAUDIO)
    size_t n;
    int    vol;
 
@@ -434,14 +417,9 @@ void CDAudio_MixF(float *buffer, size_t num_frames, float volume)
       buffer[n * 2]     = S_SoftClipNormF(buffer[n * 2]     + l * (1.0f / 32768.0f));
       buffer[n * 2 + 1] = S_SoftClipNormF(buffer[n * 2 + 1] + r * (1.0f / 32768.0f));
    }
-#endif
 }
 
 qboolean CDAudio_Playing(void)
 {
-#if defined(HAVE_CDAUDIO)
    return (qboolean)cd_playing;
-#else
-   return false;
-#endif
 }
