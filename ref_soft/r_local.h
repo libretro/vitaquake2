@@ -96,7 +96,6 @@ typedef enum
 {
 	rserr_ok,
 
-	rserr_invalid_fullscreen,
 	rserr_invalid_mode,
 
 	rserr_unknown
@@ -792,7 +791,6 @@ void R_InitSkyBox (void);
 
 typedef struct swstate_s
 {
-	qboolean fullscreen;
 	int      prev_mode;				// last valid SW mode
 
 	byte		gammatable[256];
@@ -827,6 +825,6 @@ void		SWimp_EndFrame (void);
 int			SWimp_Init( void *hInstance, void *wndProc );
 void		SWimp_SetPalette( const unsigned char *palette);
 void		SWimp_Shutdown( void );
-rserr_t		SWimp_SetMode( int *pwidth, int *pheight, int mode, qboolean fullscreen );
+rserr_t		SWimp_SetMode( int *pwidth, int *pheight, int mode );
 void		SWimp_AppActivate( qboolean active );
 

@@ -2733,7 +2733,6 @@ void SNDDMA_BeginPainting(void)
 #define REF_OPENGL   1
 
 cvar_t *vid_ref;
-cvar_t *vid_fullscreen;
 
 extern cvar_t *gl_picmip;
 cvar_t *gl_mode;
@@ -2970,7 +2969,6 @@ void    VID_Init (void)
       Com_Error (ERR_FATAL, "Couldn't start refresh");
 
    vid_ref = Cvar_Get ("vid_ref", "soft", CVAR_ARCHIVE);
-   vid_fullscreen = Cvar_Get ("vid_fullscreen", "0", CVAR_ARCHIVE);
 }
 
 void    VID_Shutdown (void)
@@ -3159,7 +3157,7 @@ const char *VID_MenuKey( int k)
 }
 
 #ifdef HAVE_OPENGL
-int GLimp_SetMode( int *pwidth, int *pheight, int mode, qboolean fullscreen )
+int GLimp_SetMode( int *pwidth, int *pheight, int mode )
 {
    /* Resolution (scr_width, scr_height) is set directly
     * by the libretro frontend, so checking the validity

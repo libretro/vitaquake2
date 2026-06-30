@@ -98,7 +98,6 @@ typedef enum
 {
 	rserr_ok,
 
-	rserr_invalid_fullscreen,
 	rserr_invalid_mode,
 
 	rserr_unknown
@@ -219,7 +218,6 @@ extern  cvar_t  *gl_saturatelighting;
 extern  cvar_t  *gl_lockpvs;
 extern  cvar_t  *gl_xflip;
 
-extern	cvar_t	*vid_fullscreen;
 extern	cvar_t	*vid_refgl_gamma;
 extern	cvar_t	*vid_refgl_brightness;
 extern	cvar_t	*vid_refgl_contrast;
@@ -337,13 +335,11 @@ typedef struct
 	const char *version_string;
 	const char *extensions_string;
 
-	qboolean	allow_cds;
 } glconfig_t;
 
 typedef struct
 {
 	float inverse_intensity;
-	qboolean fullscreen;
 
 	int     prev_mode;
 
@@ -385,7 +381,7 @@ void		GLimp_BeginFrame( float camera_separation );
 void		GLimp_EndFrame( void );
 int 		GLimp_Init( void *hinstance, void *hWnd );
 void		GLimp_Shutdown( void );
-int     	GLimp_SetMode( int *pwidth, int *pheight, int mode, qboolean fullscreen );
+int     	GLimp_SetMode( int *pwidth, int *pheight, int mode );
 void		GLimp_AppActivate( qboolean active );
 void		GLimp_EnableLogging( qboolean enable );
 void		GLimp_LogNewFrame( void );

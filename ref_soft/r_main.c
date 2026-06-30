@@ -136,7 +136,6 @@ static cvar_t  *r_novis;
 cvar_t	*r_speeds;
 cvar_t	*r_refsoft_lightlevel;	//FIXME HACK
 
-extern cvar_t	*vid_fullscreen;
 cvar_t	*vid_gamma;
 cvar_t	*vid_brightness;
 cvar_t	*vid_contrast;
@@ -308,7 +307,6 @@ void SWR_Register (void)
 	r_refsoft_lerpmodels = ri.Cvar_Get( "r_lerpmodels", "1", 0 );
 	r_novis = ri.Cvar_Get( "r_novis", "0", 0 );
 
-	vid_fullscreen = ri.Cvar_Get( "vid_fullscreen", "0", CVAR_ARCHIVE );
 
 	vid_gamma = ri.Cvar_Get( "vid_gamma", "1.0", CVAR_ARCHIVE );
 	vid_brightness = ri.Cvar_Get( "brightness", "0.0", CVAR_ARCHIVE );
@@ -1152,45 +1150,27 @@ static void SWR_BeginFrame( float camera_separation )
 		vid_contrast->modified = false;
 	}
 
-	while ( sw_mode->modified || vid_fullscreen->modified )
+	while ( sw_mode->modified )
 	{
 		rserr_t err;
 
-		/*
-		** if this returns rserr_invalid_fullscreen then it set the mode but not as a
-		** fullscreen mode, e.g. 320x200 on a system that doesn't support that res
-		*/
-		if ( ( err = SWimp_SetMode( &vid.width, &vid.height, sw_mode->value, vid_fullscreen->value ) ) == rserr_ok )
+		if ( ( err = SWimp_SetMode( &vid.width, &vid.height, sw_mode->value ) ) == rserr_ok )
 		{
 			R_InitGraphics( vid.width, vid.height );
 
 			sw_state.prev_mode = sw_mode->value;
-			vid_fullscreen->modified = false;
 			sw_mode->modified = false;
+		}
+		else if ( err == rserr_invalid_mode )
+		{
+			ri.Cvar_SetValue( "sw_mode", sw_state.prev_mode );
+			ri.Con_Printf( PRINT_ALL, "ref_soft::R_BeginFrame() - could not set mode\n" );
 		}
 		else
 		{
-			if ( err == rserr_invalid_mode )
-			{
-				ri.Cvar_SetValue( "sw_mode", sw_state.prev_mode );
-				ri.Con_Printf( PRINT_ALL, "ref_soft::R_BeginFrame() - could not set mode\n" );
-			}
-			else if ( err == rserr_invalid_fullscreen )
-			{
-				R_InitGraphics( vid.width, vid.height );
-
-				ri.Cvar_SetValue( "vid_fullscreen", 0);
-				ri.Con_Printf( PRINT_ALL, "ref_soft::R_BeginFrame() - fullscreen unavailable in this mode\n" );
-				sw_state.prev_mode = sw_mode->value;
-//				vid_fullscreen->modified = false;
-//				sw_mode->modified = false;
-			}
-			else
-			{
-				ri.Sys_Error( ERR_FATAL, "ref_soft::R_BeginFrame() - catastrophic mode change failure\n" );
-			}
+			ri.Sys_Error( ERR_FATAL, "ref_soft::R_BeginFrame() - catastrophic mode change failure\n" );
 		}
-      R_InitTurb ();
+		R_InitTurb ();
 	}
 }
 

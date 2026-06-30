@@ -93,7 +93,7 @@ void		SWimp_Shutdown( void )
 	}
 }
 
-rserr_t		SWimp_SetMode( int *pwidth, int *pheight, int mode, qboolean fullscreen )
+rserr_t		SWimp_SetMode( int *pwidth, int *pheight, int mode )
 {
 	if (vid.buffer != NULL) SWimp_Shutdown();
 	

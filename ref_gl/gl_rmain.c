@@ -132,7 +132,6 @@ cvar_t	*gl_texturealphamode;
 cvar_t	*gl_texturesolidmode;
 cvar_t	*gl_lockpvs;
 
-extern cvar_t	*vid_fullscreen;
 cvar_t	*vid_refgl_gamma;
 cvar_t	*vid_refgl_brightness;
 cvar_t	*vid_refgl_contrast;
@@ -959,8 +958,6 @@ void R_Register( void )
 
 	gl_saturatelighting = ri.Cvar_Get( "gl_saturatelighting", "0", 0 );
 
-	vid_fullscreen = ri.Cvar_Get( "vid_fullscreen", "0", CVAR_ARCHIVE );
-
 	vid_refgl_gamma = ri.Cvar_Get( "vid_gamma", "1.0", CVAR_ARCHIVE );
 	vid_refgl_brightness = ri.Cvar_Get( "brightness", "0.0", CVAR_ARCHIVE );
 	vid_refgl_contrast = ri.Cvar_Get( "contrast", "1.0", CVAR_ARCHIVE );
@@ -983,35 +980,16 @@ R_SetMode
 qboolean R_SetMode (void)
 {
 	int err;
-	qboolean fullscreen;
-	
-	if ( vid_fullscreen->modified && !gl_config.allow_cds )
-	{
-		ri.Con_Printf( PRINT_ALL, "R_SetMode() - CDS not allowed with this driver\n" );
-		ri.Cvar_SetValue( "vid_fullscreen", !vid_fullscreen->value );
-		vid_fullscreen->modified = false;
-	}
 
-	fullscreen = vid_fullscreen->value;
-
-	vid_fullscreen->modified = false;
 	gl_mode->modified = false;
 
-	if ( ( err = GLimp_SetMode((int*)&vid.width, (int*)&vid.height, gl_mode->value, fullscreen ) ) == rserr_ok )
+	if ( ( err = GLimp_SetMode((int*)&vid.width, (int*)&vid.height, gl_mode->value ) ) == rserr_ok )
 	{
 		gl_state.prev_mode = gl_mode->value;
 	}
 	else
 	{
-		if ( err == rserr_invalid_fullscreen )
-		{
-			ri.Cvar_SetValue( "vid_fullscreen", 0);
-			vid_fullscreen->modified = false;
-			ri.Con_Printf( PRINT_ALL, "ref_gl::R_SetMode() - fullscreen unavailable in this mode\n" );
-			if ( ( err = GLimp_SetMode((int*)&vid.width, (int*)&vid.height, gl_mode->value, false ) ) == rserr_ok )
-				return true;
-		}
-		else if ( err == rserr_invalid_mode )
+		if ( err == rserr_invalid_mode )
 		{
 			ri.Cvar_SetValue( "gl_mode", gl_state.prev_mode );
 			gl_mode->modified = false;
@@ -1019,7 +997,7 @@ qboolean R_SetMode (void)
 		}
 
 		/* try setting it back to something safe */
-		if ( ( err = GLimp_SetMode((int*)&vid.width, (int*)&vid.height, gl_state.prev_mode, false ) ) != rserr_ok )
+		if ( GLimp_SetMode((int*)&vid.width, (int*)&vid.height, gl_state.prev_mode ) != rserr_ok )
 		{
 			ri.Con_Printf( PRINT_ALL, "ref_gl::R_SetMode() - could not revert to safe mode\n" );
 			return false;
@@ -1071,8 +1049,6 @@ qboolean R_Init( void *hinstance, void *hWnd )
 	gl_config.renderer = GL_RENDERER_OTHER;
 
 	ri.Cvar_Set( "scr_drawall", "0" );
-
-	gl_config.allow_cds = true;
 
 	ri.Con_Printf (PRINT_ALL, "GL_SetDefaultState\n");
 	
@@ -1135,9 +1111,8 @@ static void R_BeginFrame( float camera_separation )
 	/*
 	** change modes if necessary
 	*/
-	if ( gl_mode->modified || vid_fullscreen->modified )
+	if ( gl_mode->modified )
 	{
-      /* FIXME: only restart if CDS is required */
 		cvar_t *ref = ri.Cvar_Get ("vid_ref", "gl", 0);
 		ref->modified = true;
 	}
