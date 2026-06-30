@@ -27,7 +27,6 @@ netadr_t	master_adr[MAX_MASTERS];	// address of group servers
 client_t	*sv_client;			// current client
 
 cvar_t	*sv_paused;
-cvar_t	*sv_timedemo;
 
 cvar_t	*sv_enforcetime;
 
@@ -771,7 +770,7 @@ void SV_Frame (int msec)
 	SV_ReadPackets ();
 
 	// move autonomous things around if enough time has passed
-	if (!sv_timedemo->value && svs.realtime < sv.time)
+	if (svs.realtime < sv.time)
 	{
 		// never let the time get too far off
 		if (sv.time - svs.realtime > 100)
@@ -955,7 +954,6 @@ void SV_Init (void)
 	zombietime = Cvar_Get ("zombietime", "2", 0);
 	sv_showclamp = Cvar_Get ("showclamp", "0", 0);
 	sv_paused = Cvar_Get ("paused", "0", 0);
-	sv_timedemo = Cvar_Get ("timedemo", "0", 0);
 	sv_enforcetime = Cvar_Get ("sv_enforcetime", "0", 0);
 	allow_download = Cvar_Get ("allow_download", "0", CVAR_ARCHIVE);
 	allow_download_players  = Cvar_Get ("allow_download_players", "0", CVAR_ARCHIVE);

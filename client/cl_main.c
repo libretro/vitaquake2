@@ -63,7 +63,6 @@ cvar_t	*cl_showmiss;
 cvar_t	*cl_showclamp;
 
 cvar_t	*cl_paused;
-cvar_t	*cl_timedemo;
 
 cvar_t	*lookspring;
 cvar_t	*lookstrafe;
@@ -628,16 +627,6 @@ void CL_Disconnect (void)
 
 	if (cls.state == ca_disconnected)
 		return;
-
-	if (cl_timedemo && cl_timedemo->value)
-	{
-		int	time;
-
-		time = Sys_Milliseconds () - cl.timedemo_start;
-		if (time > 0)
-			Com_Printf ("%i frames, %3.1f seconds: %3.1f fps\n", cl.timedemo_frames,
-			time/1000.0, cl.timedemo_frames*1000.0 / time);
-	}
 
 	VectorClear (cl.refdef.blend);
 	re.CinematicSetPalette(NULL);
@@ -1474,7 +1463,6 @@ void CL_InitLocal (void)
 	cl_showclamp = Cvar_Get ("showclamp", "0", 0);
 	cl_timeout = Cvar_Get ("cl_timeout", "120", 0);
 	cl_paused = Cvar_Get ("paused", "0", 0);
-	cl_timedemo = Cvar_Get ("timedemo", "0", 0);
 
 	rcon_client_password = Cvar_Get ("rcon_password", "", 0);
 	rcon_address = Cvar_Get ("rcon_address", "", 0);
@@ -1627,7 +1615,6 @@ typedef struct
 
 cheatvar_t	cheatvars[] = {
 	{"timescale", "1"},
-	{"timedemo", "0"},
 	{"r_drawworld", "1"},
 	{"cl_testlights", "0"},
 	{"r_fullbright", "0"},
@@ -1718,13 +1705,8 @@ void CL_Frame (int msec)
 
 	extratime += msec;
 
-	if (!cl_timedemo->value)
-	{
-		if (cls.state == ca_connected && extratime < 100)
-			return;			// don't flood packets out while connecting
-		//if (extratime < 1000/cl_maxfps->value)
-		//	return;			// framerate is too high
-	}
+	if (cls.state == ca_connected && extratime < 100)
+		return;			// don.t flood packets out while connecting
 
 	// let the mouse activate or deactivate
 	IN_Frame ();

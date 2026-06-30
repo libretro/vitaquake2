@@ -1470,9 +1470,6 @@ void CL_AddEntities (void)
 	else
 		cl.lerpfrac = 1.0 - (cl.frame.servertime - cl.time) * 0.01;
 
-	if (cl_timedemo->value)
-		cl.lerpfrac = 1.0;
-
 //	CL_AddPacketEntities (&cl.frame);
 //	CL_AddTEnts ();
 //	CL_AddParticles ();

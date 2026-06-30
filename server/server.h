@@ -65,7 +65,6 @@ typedef struct
 
 	// demo server information
 	RFILE		*demofile;
-	qboolean	timedemo;		// don't time sync
 } server_t;
 
 #define EDICT_NUM(n) ((edict_t *)((byte *)ge->edicts + ge->edict_size*(n)))

@@ -96,8 +96,6 @@ typedef struct
 {
 	int			timeoutcount;
 
-	int			timedemo_frames;
-	int			timedemo_start;
 
 	qboolean	refresh_prepped;	// false if on new level or new ref dll
 	qboolean	sound_prepped;		// ambient sounds can start
@@ -293,7 +291,6 @@ extern	cvar_t	*freelook;
 extern	cvar_t	*cl_lightlevel;	// FIXME HACK
 
 extern	cvar_t	*cl_paused;
-extern	cvar_t	*cl_timedemo;
 
 extern	cvar_t	*cl_vwep;
 
