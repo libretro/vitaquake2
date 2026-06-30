@@ -1254,19 +1254,12 @@ void Hunk_Free (void *base)
       free(base);
 }
 
-static uint64_t sys_ms_base = 0;
-
 int Sys_Milliseconds (void)
 {
-   uint64_t time = cpu_features_get_time_usec() / 1000;
-
-   if (!sys_ms_base)
-   {
-      sys_ms_base = time;
-   }
-
-   curtime = (int)(time - sys_ms_base);
-
+   /* curtime is advanced by framerate_ms once per retro_run frame (see
+      retro_run), giving a deterministic, frame-driven millisecond clock with
+      no wall-clock dependency. This keeps the whole core reproducible for
+      run-ahead, netplay and demo playback regardless of host speed. */
    return curtime;
 }
 
@@ -2009,9 +2002,9 @@ void retro_deinit(void)
     * retro_load_game() to skip Qcommon_Init() and run on torn-down state. */
    first_boot = true;
 
-   /* Reset the millisecond epoch so the next load starts curtime from zero
-    * instead of carrying the previous session's elapsed time. */
-   sys_ms_base = 0;
+   /* Reset the deterministic frame clock so the next load starts curtime from
+    * zero instead of carrying the previous session's elapsed time. */
+   curtime = 0;
 
    /* Reset software-present state for a clean re-load. */
    sw_present_target = NULL;
@@ -2466,6 +2459,10 @@ void retro_run(void)
     * removing a full-frame copy in retro_run_video. No-op unless the frontend
     * supports both software framebuffers and frame duplication. */
    sw_acquire_framebuffer();
+
+   /* advance the deterministic frame clock (see Sys_Milliseconds) by one
+    * fixed timestep before simulating the frame */
+   curtime += (int)framerate_ms;
 
    /* TODO/FIXME - argument should be changed into float for better accuracy of fixed timestep */
    Qcommon_Frame (framerate_ms);
