@@ -1151,3 +1151,39 @@ void restore_textures()
 	
 	GL_ReuploadImage(refgl_draw_chars);
 }
+
+/*
+===============
+GL_UpdateGamma
+
+Rebuild the gamma table from the current vid_gamma and re-apply it to the
+textures already resident in GL, so a gamma change made from the Video menu
+takes effect without a vid_restart. The gamma loop mirrors GL_InitImages;
+restore_textures() re-uploads every disk-backed texture through the new table.
+===============
+*/
+void GL_UpdateGamma (void)
+{
+	int   i;
+	float g = vid_refgl_gamma->value;
+
+	if ( gl_config.renderer & ( GL_RENDERER_VOODOO | GL_RENDERER_VOODOO2 ) )
+		g = 1.0F;
+
+	for ( i = 0; i < 256; i++ )
+	{
+		if ( g == 1 )
+			gammatable[i] = i;
+		else
+		{
+			float inf = 255 * pow ( (i+0.5)/255.5, g ) + 0.5;
+			if (inf < 0)
+				inf = 0;
+			if (inf > 255)
+				inf = 255;
+			gammatable[i] = (unsigned char)inf;
+		}
+	}
+
+	restore_textures();
+}

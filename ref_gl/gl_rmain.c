@@ -924,7 +924,6 @@ static void R_RenderFrame (refdef_t *fd)
 	R_SetGL2D ();
 }
 
-extern float libretro_gamma;
 extern float libretro_gl_modulate;
 extern int VID_GetMode ( int width, int height );
 
@@ -1008,7 +1007,6 @@ void R_Register( void )
 	vid_fullscreen = ri.Cvar_Get( "vid_fullscreen", "0", CVAR_ARCHIVE );
 
 	vid_refgl_gamma = ri.Cvar_Get( "vid_gamma", "1.0", CVAR_ARCHIVE );
-	ri.Cvar_SetValue( "vid_gamma", libretro_gamma );
 
 	vid_ref = ri.Cvar_Get( "vid_ref", "soft", CVAR_ARCHIVE );
 	
@@ -1188,8 +1186,9 @@ static void R_BeginFrame( float camera_separation )
 	}
 
 	/*
-	** update 3Dfx gamma -- it is expected that a user will do a vid_restart
-	** after tweaking this value
+	** rebuild the gamma table and re-apply it to the loaded textures when
+	** vid_gamma changes (e.g. from the Video menu), so gamma updates live
+	** without a vid_restart. 3Dfx boards still go through the env-var ramp.
 	*/
 	if ( vid_refgl_gamma->modified )
 	{
@@ -1207,7 +1206,9 @@ static void R_BeginFrame( float camera_separation )
 			Com_sprintf( envbuffer, sizeof(envbuffer), "SST_GAMMA=%f", g );
 			putenv( envbuffer );
 		}
+		else
 #endif
+			GL_UpdateGamma();
 	}
 
 	GLimp_BeginFrame( camera_separation );

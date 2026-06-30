@@ -276,7 +276,6 @@ extern cvar_t *gl_xflip;
 #else
 cvar_t *gl_xflip;
 #endif
-extern float libretro_gamma;
 
 void SWR_Register (void)
 {
@@ -310,7 +309,6 @@ void SWR_Register (void)
 	vid_fullscreen = ri.Cvar_Get( "vid_fullscreen", "0", CVAR_ARCHIVE );
 
 	vid_gamma = ri.Cvar_Get( "vid_gamma", "1.0", CVAR_ARCHIVE );
-	ri.Cvar_SetValue( "vid_gamma", libretro_gamma );
 
 	ri.Cmd_AddCommand ("modellist", SWR_Mod_Modellist_f);
 	ri.Cmd_AddCommand( "screenshot", R_ScreenShot_f );

@@ -65,7 +65,6 @@ static bool sw_have_presented = false;
 
 bool cdaudio_enabled = true;
 
-float libretro_gamma = 1.0f;
 float libretro_hud_scale = 0.5f;
 #ifdef HAVE_OPENGL
 extern cvar_t *gl_shadows;
@@ -1670,24 +1669,6 @@ static void update_variables(bool startup)
             break;
       }
 
-      var.key = "vitaquakeii_gamma";
-      var.value = NULL;
-      libretro_gamma = 1.0f;
-
-      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-      {
-         /* Invert sense so greater = brighter,
-          * and scale to a range of 0.5 to 1.3 */
-         float gamma_correction = atof(var.value);
-
-         if (gamma_correction < 0.2f)
-            gamma_correction = 0.2f;
-         if (gamma_correction > 1.0f)
-            gamma_correction = 1.0f;
-
-         libretro_gamma = (-1.0f * gamma_correction) + 1.5f;
-      }
-
 #ifdef HAVE_OPENGL
       var.key = "vitaquakeii_renderer";
       var.value = NULL;
@@ -2766,6 +2747,7 @@ static menuframework_s *s_current_menu;
 static menulist_s       s_mode_list;
 static menulist_s       s_ref_list;
 static menuslider_s     s_screensize_slider;
+static menuslider_s     s_brightness_slider;
 static menuaction_s     s_cancel_action;
 
 viddef_t    viddef;             /* global video state */
@@ -2906,6 +2888,19 @@ static void DriverCallback( void *unused )
 #endif
 }
 
+/* Adjust gamma live from the Video menu. vid_gamma is CVAR_ARCHIVE (so the
+ * setting persists), and Cvar_SetValue marks it modified, which makes the
+ * active renderer rebuild its gamma table on the next frame - the software
+ * renderer rebuilds its palette and the GL renderer re-applies the gamma to
+ * its textures - so the change takes effect without a restart. */
+static void BrightnessCallback( void *s )
+{
+   menuslider_s *slider = ( menuslider_s * ) s;
+   float gamma = ( 0.8f - ( slider->curvalue / 10.0f - 0.5f ) ) + 0.5f;
+
+   Cvar_SetValue( "vid_gamma", gamma );
+}
+
 static void ApplyChanges( void *unused )
 {
 #ifdef HAVE_OPENGL
@@ -3028,6 +3023,21 @@ void    VID_MenuInit (void)
    s_ref_list.generic.callback = DriverCallback;
    s_ref_list.itemnames = refs;
 
+   /* gamma / brightness, applied live (see BrightnessCallback). The slider
+    * runs 5..13 mapping to vid_gamma 1.3 (darkest) .. 0.5 (brightest), the
+    * same sense as stock Quake II's brightness control. */
+   s_brightness_slider.generic.type     = MTYPE_SLIDER;
+   s_brightness_slider.generic.name     = "brightness";
+   s_brightness_slider.generic.x        = 0;
+   s_brightness_slider.generic.y        = 10;
+   s_brightness_slider.generic.callback = BrightnessCallback;
+   s_brightness_slider.minvalue         = 5;
+   s_brightness_slider.maxvalue         = 13;
+   {
+      cvar_t *g = Cvar_Get( "vid_gamma", "1.0", CVAR_ARCHIVE );
+      s_brightness_slider.curvalue = ( 1.3f - ( g ? g->value : 1.0f ) + 0.5f ) * 10.0f;
+   }
+
    s_cancel_action.generic.type = MTYPE_ACTION;
    s_cancel_action.generic.name = "cancel";
    s_cancel_action.generic.x    = 0;
@@ -3035,6 +3045,7 @@ void    VID_MenuInit (void)
    s_cancel_action.generic.callback = CancelChanges;
 
    Menu_AddItem( &s_opengl_menu, ( void * ) &s_ref_list );
+   Menu_AddItem( &s_opengl_menu, ( void * ) &s_brightness_slider );
    Menu_AddItem( &s_opengl_menu, ( void * ) &s_cancel_action );
    Menu_Center( &s_opengl_menu );
 
