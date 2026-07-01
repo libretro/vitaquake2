@@ -57,6 +57,9 @@ typedef struct pack_s
 	RFILE	*handle;
 	int		numfiles;
 	packfile_t	*files;
+	int		hashsize;		/* power of two, or 0 if no index */
+	int		*hash_heads;	/* [hashsize]  first file in bucket, or -1 */
+	int		*hash_next;		/* [numfiles]  next file in bucket, or -1 */
 } pack_t;
 
 char	fs_gamedir[MAX_OSPATH];
@@ -198,12 +201,35 @@ a seperate file.
 */
 int file_from_pak = 0;
 
+/*
+==============
+FS_HashPakName
+
+Case-insensitive (ASCII, matching Q_strcasecmp's a-z -> A-Z fold) FNV-1a
+hash of a pak path, reduced into a pack's power-of-two bucket count.
+==============
+*/
+static unsigned FS_HashPakName (const char *name, int hashsize)
+{
+	unsigned	h = 2166136261u;
+	int			c;
+
+	while ((c = *(const unsigned char *)name++) != 0)
+	{
+		if (c >= 'a' && c <= 'z')
+			c -= ('a' - 'A');
+		h ^= (unsigned)c;
+		h *= 16777619u;
+	}
+
+	return h & (unsigned)(hashsize - 1);
+}
+
 int FS_FOpenFile (char *filename, RFILE **file)
 {
 	searchpath_t	*search;
 	char			netpath[MAX_OSPATH];
 	pack_t			*pak;
-	int				i;
 	filelink_t		*link;
 
 	file_from_pak = 0;
@@ -232,20 +258,30 @@ int FS_FOpenFile (char *filename, RFILE **file)
 	// is the element a pak file?
 		if (search->pack)
 		{
-		// look through all the pak file elements
+		// look up in the pak's hash index
+			int	idx, found = -1;
 			pak = search->pack;
-			for (i=0 ; i<pak->numfiles ; i++)
-				if (!Q_strcasecmp (pak->files[i].name, filename))
-				{	// found it!
-					file_from_pak = 1;
-					Com_DPrintf ("PackFile: %s : %s\n",pak->filename, filename);
-				// open a new file on the pakfile
-					*file = rfopen (pak->filename, "rb");
-					if (!*file)
-						Com_Error (ERR_FATAL, "Couldn't reopen %s", pak->filename);	
-					rfseek (*file, pak->files[i].filepos, SEEK_SET);
-					return pak->files[i].filelen;
+			for (idx = pak->hash_heads[FS_HashPakName (filename, pak->hashsize)];
+			     idx != -1;
+			     idx = pak->hash_next[idx])
+			{
+				if (!Q_strcasecmp (pak->files[idx].name, filename))
+				{
+					found = idx;
+					break;
 				}
+			}
+			if (found != -1)
+			{	// found it!
+				file_from_pak = 1;
+				Com_DPrintf ("PackFile: %s : %s\n",pak->filename, filename);
+			// open a new file on the pakfile
+				*file = rfopen (pak->filename, "rb");
+				if (!*file)
+					Com_Error (ERR_FATAL, "Couldn't reopen %s", pak->filename);
+				rfseek (*file, pak->files[found].filepos, SEEK_SET);
+				return pak->files[found].filelen;
+			}
 		}
 		else
 		{		
@@ -464,6 +500,33 @@ pack_t *FS_LoadPackFile (char *packfile)
 	pack->handle = packhandle;
 	pack->numfiles = numpackfiles;
 	pack->files = newfiles;
+
+	/* Build a case-insensitive hash index over the directory so FS_FOpenFile
+	 * resolves a name in O(1) instead of a linear Q_strcasecmp scan of every
+	 * entry. Chain in descending order so that if a pak ever holds duplicate
+	 * names the lowest index is returned first, matching the first-match-wins
+	 * behaviour of the old scan. */
+	{
+		int hs, b;
+
+		for (hs = 1; hs < numpackfiles; hs <<= 1)
+			;
+		hs <<= 1;   /* keep the load factor <= 0.5 */
+
+		pack->hashsize   = hs;
+		pack->hash_heads = Z_Malloc (hs * (int)sizeof(int));
+		pack->hash_next  = Z_Malloc (numpackfiles * (int)sizeof(int));
+
+		for (i = 0; i < hs; i++)
+			pack->hash_heads[i] = -1;
+
+		for (i = numpackfiles - 1; i >= 0; i--)
+		{
+			b = (int)FS_HashPakName (newfiles[i].name, hs);
+			pack->hash_next[i]  = pack->hash_heads[b];
+			pack->hash_heads[b] = i;
+		}
+	}
 	
 	Com_Printf ("Added packfile %s (%i files)\n", packfile, numpackfiles);
 	return pack;
@@ -570,6 +633,8 @@ void FS_SetGamedir (char *dir)
 		if (fs_searchpaths->pack)
 		{
 			rfclose (fs_searchpaths->pack->handle);
+			Z_Free (fs_searchpaths->pack->hash_heads);
+			Z_Free (fs_searchpaths->pack->hash_next);
 			Z_Free (fs_searchpaths->pack->files);
 			Z_Free (fs_searchpaths->pack);
 		}
