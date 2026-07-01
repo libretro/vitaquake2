@@ -462,6 +462,47 @@ cache) and uses no floats, so the cached samples stay bit-identical across
 platforms - preserving the mixer/netplay/runahead determinism.
 ================
 */
+/* Polyphase bank: the 32 kernel taps for each of the SFX_RS_SUB sub-sample
+ * phases, precomputed once from s_sfx_sinc so the hot up-sampling loop is a
+ * flat, branch-free MAC.  s_sfx_bankcsum[phase] is the tap sum used for the
+ * unity-gain normalise.  Taps outside the kernel support are stored as zero
+ * (they added nothing to acc or csum in the per-tap walk either), so the
+ * bank reproduces the original result exactly. */
+#define SFX_RS_TAPS (2 * SFX_RS_NZ)
+static short s_sfx_bank[SFX_RS_SUB][SFX_RS_TAPS];
+static int   s_sfx_bankcsum[SFX_RS_SUB];
+static int   s_sfx_bank_built;
+
+static void SFX_BuildBank (void)
+{
+	int phase, j, k, ti, cs;
+
+	if (s_sfx_bank_built)
+		return;
+
+	for (phase = 0; phase < SFX_RS_SUB; phase++)
+	{
+		cs = 0;
+		for (j = 0; j < SFX_RS_TAPS; j++)
+		{
+			k  = j - (SFX_RS_NZ - 1);
+			ti = k * SFX_RS_SUB - phase;
+			if (ti < 0)
+				ti = -ti;
+			if (ti > SFX_RS_MAX)
+			{
+				s_sfx_bank[phase][j] = 0;
+				continue;
+			}
+			s_sfx_bank[phase][j] = s_sfx_sinc[ti];
+			cs += s_sfx_sinc[ti];
+		}
+		s_sfx_bankcsum[phase] = cs;
+	}
+
+	s_sfx_bank_built = 1;
+}
+
 void ResampleSfx (sfx_t *sfx, int inrate, int inwidth, byte *data)
 {
 	sfxcache_t	*sc;
@@ -504,6 +545,81 @@ void ResampleSfx (sfx_t *sfx, int inrate, int inwidth, byte *data)
 		return;
 	}
 
+	SFX_BuildBank ();
+
+	if (fracstep < (1 << 16))
+	{
+		/* up-sampling: convert the source to int16 once (this hoists the
+		 * per-tap 8/16-bit test out of the inner loop), then run a fixed
+		 * 32-tap polyphase MAC.  The interior path is a branch-free,
+		 * contiguous dot product the compiler can vectorise; only the
+		 * window edges take the clamped path.  Bit-identical to the
+		 * per-tap kernel walk it replaces. */
+		short	*src16 = (short *)Z_Malloc ((inlength > 0 ? inlength : 1) * (int)sizeof(short));
+
+		for (i = 0; i < inlength; i++)
+			src16[i] = (inwidth == 2)
+				? LittleShort (((short *)data)[i])
+				: (((int)(unsigned char)data[i] - 128) << 8);
+
+		samplefrac = 0;
+		for (i = 0; i < outcount; i++)
+		{
+			int		base  = samplefrac >> 16;
+			int		phase = (samplefrac >> 8) & 0xFF;
+			const short	*kp   = s_sfx_bank[phase];
+			int		csum  = s_sfx_bankcsum[phase];
+			int		j, sample;
+			int64_t		acc = 0;
+
+			if (base >= (SFX_RS_NZ - 1) && base <= inlength - (SFX_RS_NZ + 1))
+			{
+				const short *sp = src16 + base - (SFX_RS_NZ - 1);
+				for (j = 0; j < SFX_RS_TAPS; j++)
+					acc += (int64_t)kp[j] * sp[j];
+			}
+			else
+			{
+				for (j = 0; j < SFX_RS_TAPS; j++)
+				{
+					int idx = base - (SFX_RS_NZ - 1) + j;
+					if (idx < 0)
+						idx = 0;
+					else if (idx >= inlength)
+						idx = inlength - 1;
+					acc += (int64_t)kp[j] * src16[idx];
+				}
+			}
+
+			if (csum > 0)
+			{
+				if (acc >= 0)
+					sample = (int)((acc + (csum >> 1)) / csum);
+				else
+					sample = -(int)(((-acc) + (csum >> 1)) / csum);
+			}
+			else
+				sample = 0;
+
+			if (sample > 32767)
+				sample = 32767;
+			else if (sample < -32768)
+				sample = -32768;
+
+			if (sc->width == 2)
+				((short *)sc->data)[i] = sample;
+			else
+				((signed char *)sc->data)[i] = sample >> 8;
+
+			samplefrac += fracstep;
+		}
+
+		Z_Free (src16);
+		return;
+	}
+
+	/* down-sampling: unchanged kernel-stretch walk (not taken for the usual
+	 * 11/22/44 kHz source -> higher output-rate case) */
 	samplefrac = 0;
 	for (i = 0; i < outcount; i++)
 	{
@@ -513,58 +629,28 @@ void ResampleSfx (sfx_t *sfx, int inrate, int inwidth, byte *data)
 		int	k, kh, ti, c, idx, s, sample;
 		int64_t	acc = 0;
 
-		if (fracstep <= (1 << 16))
+		kh = (int)(((int64_t)SFX_RS_NZ * fracstep) >> 16) + 2;
+		for (k = -kh; k <= kh; k++)
 		{
-			/* up-sampling / unity: kernel at source-sample spacing, cutoff at
-			 * the source Nyquist */
-			for (k = -(SFX_RS_NZ - 1); k <= SFX_RS_NZ; k++)
-			{
-				ti = k * SFX_RS_SUB - phase;
-				if (ti < 0)
-					ti = -ti;
-				if (ti > SFX_RS_MAX)
-					continue;
-				c = s_sfx_sinc[ti];
-				idx = base + k;
-				if (idx < 0)
-					idx = 0;
-				else if (idx >= inlength)
-					idx = inlength - 1;
-				s = (inwidth == 2)
-					? LittleShort(((short *)data)[idx])
-					: (((int)(unsigned char)data[idx] - 128) << 8);
-				acc  += (int64_t)c * s;
-				csum += c;
-			}
-		}
-		else
-		{
-			/* down-sampling: stretch the kernel by the ratio so the cutoff
-			 * tracks the lower output Nyquist and rejects aliasing */
-			kh = (int)(((int64_t)SFX_RS_NZ * fracstep) >> 16) + 2;
-			for (k = -kh; k <= kh; k++)
-			{
-				ti = k * SFX_RS_SUB - phase;
-				if (ti < 0)
-					ti = -ti;
-				ti = (int)(((int64_t)ti << 16) / fracstep);
-				if (ti > SFX_RS_MAX)
-					continue;
-				c = s_sfx_sinc[ti];
-				idx = base + k;
-				if (idx < 0)
-					idx = 0;
-				else if (idx >= inlength)
-					idx = inlength - 1;
-				s = (inwidth == 2)
-					? LittleShort(((short *)data)[idx])
-					: (((int)(unsigned char)data[idx] - 128) << 8);
-				acc  += (int64_t)c * s;
-				csum += c;
-			}
+			ti = k * SFX_RS_SUB - phase;
+			if (ti < 0)
+				ti = -ti;
+			ti = (int)(((int64_t)ti << 16) / fracstep);
+			if (ti > SFX_RS_MAX)
+				continue;
+			c = s_sfx_sinc[ti];
+			idx = base + k;
+			if (idx < 0)
+				idx = 0;
+			else if (idx >= inlength)
+				idx = inlength - 1;
+			s = (inwidth == 2)
+				? LittleShort (((short *)data)[idx])
+				: (((int)(unsigned char)data[idx] - 128) << 8);
+			acc  += (int64_t)c * s;
+			csum += c;
 		}
 
-		/* normalise to unity gain (csum ~ SFX_RS_ONE), symmetric rounding */
 		if (csum > 0)
 		{
 			if (acc >= 0)
