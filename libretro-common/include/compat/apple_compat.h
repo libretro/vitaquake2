@@ -1,7 +1,7 @@
 /* Copyright  (C) 2010-2020 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
- * The following license statement only applies to this file (retro_common.h).
+ * The following license statement only applies to this file (apple_compat.h).
  * ---------------------------------------------------------------------------------------
  *
  * Permission is hereby granted, free of charge,
@@ -20,17 +20,66 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef _LIBRETRO_COMMON_RETRO_COMMON_H
-#define _LIBRETRO_COMMON_RETRO_COMMON_H
+#ifndef __APPLE_COMPAT_H
+#define __APPLE_COMPAT_H
 
-/*!
- * @internal This file is designed to normalize the libretro-common compiling environment.
- * It is not to be used in public API headers, as they should be designed as leanly as possible.
- * Nonetheless.. in the meantime, if you do something like use ssize_t, which is not fully portable,
- * in a public API, you may need this.
- */
+#ifdef __APPLE__
+#include <AvailabilityMacros.h>
+#include <CoreFoundation/CoreFoundation.h>
+#endif
 
-/* conditional compilation is handled inside here */
-#include <compat/msvc.h>
+#ifdef __OBJC__
+
+#if (MAC_OS_X_VERSION_MAX_ALLOWED <= MAC_OS_X_VERSION_10_4)
+typedef int NSInteger;
+typedef unsigned NSUInteger;
+typedef float CGFloat;
+#endif
+
+#ifndef __has_feature
+/* Compatibility with non-Clang compilers. */
+#define __has_feature(x) 0
+#endif
+
+#ifndef CF_RETURNS_RETAINED
+#if __has_feature(attribute_cf_returns_retained)
+#define CF_RETURNS_RETAINED __attribute__((cf_returns_retained))
+#else
+#define CF_RETURNS_RETAINED
+#endif
+#endif
+
+#ifndef NS_INLINE
+#define NS_INLINE inline
+#endif
+
+NS_INLINE CF_RETURNS_RETAINED CFTypeRef CFBridgingRetainCompat(id X)
+{
+#if __has_feature(objc_arc)
+   return (__bridge_retained CFTypeRef)X;
+#else
+   return X;
+#endif
+}
+
+#endif
+
+#ifdef IOS
+#ifndef __IPHONE_5_0
+#warning "This project uses features only available in iOS SDK 5.0 and later."
+#endif
+
+#ifdef __OBJC__
+#import <UIKit/UIKit.h>
+#import <GLKit/GLKit.h>
+#import <Foundation/Foundation.h>
+#endif
+
+#else
+
+#ifdef __OBJC__
+#include <objc/objc-runtime.h>
+#endif
+#endif
 
 #endif
