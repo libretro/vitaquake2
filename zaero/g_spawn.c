@@ -393,6 +393,7 @@ void ED_ParseField (const char *key, const char *value, edict_t *ent)
 	byte	*b;
 	float	v;
 	vec3_t	vec;
+	char	*p;
 
 	if (!ent || !value || !key)
 	{
@@ -414,7 +415,10 @@ void ED_ParseField (const char *key, const char *value, edict_t *ent)
 				*(char **)(b+f->ofs) = ED_NewString (value);
 				break;
 			case F_VECTOR:
-				sscanf (value, "%f %f %f", &vec[0], &vec[1], &vec[2]);
+				p = (char *)value;
+				vec[0] = (float)strtod (p, &p);
+				vec[1] = (float)strtod (p, &p);
+				vec[2] = (float)strtod (p, &p);
 				((float *)(b+f->ofs))[0] = vec[0];
 				((float *)(b+f->ofs))[1] = vec[1];
 				((float *)(b+f->ofs))[2] = vec[2];
