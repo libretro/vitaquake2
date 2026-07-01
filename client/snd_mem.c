@@ -570,13 +570,18 @@ void ResampleSfx (sfx_t *sfx, int inrate, int inwidth, byte *data)
 			const short	*kp   = s_sfx_bank[phase];
 			int		csum  = s_sfx_bankcsum[phase];
 			int		j, sample;
-			int64_t		acc = 0;
+			/* 32-bit accumulator: the per-phase kernel tap magnitudes sum
+			 * to at most ~35700, so |acc| <= 35700 * 32768 < 2^31 and cannot
+			 * overflow.  Keeping it int (not int64_t) lets the compiler emit
+			 * a 16x16->32 widening multiply-add (pmaddwd / smlal) for the
+			 * interior loop; results are identical to the 64-bit version. */
+			int		acc = 0;
 
 			if (base >= (SFX_RS_NZ - 1) && base <= inlength - (SFX_RS_NZ + 1))
 			{
 				const short *sp = src16 + base - (SFX_RS_NZ - 1);
 				for (j = 0; j < SFX_RS_TAPS; j++)
-					acc += (int64_t)kp[j] * sp[j];
+					acc += kp[j] * sp[j];
 			}
 			else
 			{
@@ -587,7 +592,7 @@ void ResampleSfx (sfx_t *sfx, int inrate, int inwidth, byte *data)
 						idx = 0;
 					else if (idx >= inlength)
 						idx = inlength - 1;
-					acc += (int64_t)kp[j] * src16[idx];
+					acc += kp[j] * src16[idx];
 				}
 			}
 
