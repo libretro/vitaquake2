@@ -43,6 +43,10 @@ include:
   - project: 'libretro-infrastructure/ci-templates'
     file: '/linux-x64.yml'
 
+  # Linux ARM 64-bit
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/linux-aarch64.yml'
+
   # Linux 32-bit
   - project: 'libretro-infrastructure/ci-templates'
     file: '/linux-i686.yml'
@@ -133,6 +137,12 @@ libretro-build-windows-i686:
 libretro-build-linux-x64:
   extends:
     - .libretro-linux-x64-make-default
+    - .core-defs
+
+# Linux ARM 64-bit
+libretro-build-linux-aarch64:
+  extends:
+    - .libretro-linux-aarch64-make-default
     - .core-defs
 
 # Linux 32-bit
@@ -271,6 +281,12 @@ libretro-build-linux-x64-rogue:
     - .libretro-linux-x64-make-default
     - .core-defs-rogue
 
+# Linux ARM 64-bit
+libretro-build-linux-aarch64-rogue:
+  extends:
+    - .libretro-linux-aarch64-make-default
+    - .core-defs-rogue
+
 # Linux 32-bit
 libretro-build-linux-i686-rogue:
   extends:
@@ -407,6 +423,12 @@ libretro-build-linux-x64-xatrix:
     - .libretro-linux-x64-make-default
     - .core-defs-xatrix
 
+# Linux ARM 64-bit
+libretro-build-linux-aarch64-xatrix:
+  extends:
+    - .libretro-linux-aarch64-make-default
+    - .core-defs-xatrix
+
 # Linux 32-bit
 libretro-build-linux-i686-xatrix:
   extends:
@@ -541,6 +563,12 @@ libretro-build-windows-i686-zaero:
 libretro-build-linux-x64-zaero:
   extends:
     - .libretro-linux-x64-make-default
+    - .core-defs-zaero
+
+# Linux ARM 64-bit
+libretro-build-linux-aarch64-zaero:
+  extends:
+    - .libretro-linux-aarch64-make-default
     - .core-defs-zaero
 
 # Linux 32-bit
