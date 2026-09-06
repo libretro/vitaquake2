@@ -180,7 +180,7 @@ else ifeq ($(platform), vita)
    TARGET := $(TARGET_NAME)_libretro_vita.a
    CC = arm-vita-eabi-gcc
    AR = arm-vita-eabi-ar
-   CFLAGS += -DVITA
+   CFLAGS += -DVITA -D_POSIX_C_SOURCE=200809L
    CXXFLAGS += -Wl,-q -Wall -O3
    STATIC_LINKING = 1
 else ifeq ($(platform), libnx)
